@@ -121,7 +121,7 @@ body{
     overflow: hidden;           /* ořez okrajů při zoomu */
   }
   .card .media img {
-    transition: transform .35s ease;  /* plynulé */
+    transition: transform .8s ease;  /* plynulé */
     transform-origin: center center;
   }
   .card:hover .media img {
