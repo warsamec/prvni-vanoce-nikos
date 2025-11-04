@@ -121,11 +121,11 @@ body{
     overflow: hidden;           /* ořez okrajů při zoomu */
   }
   .card .media img {
-    transition: transform 1.5s ease;  /* plynulé */
+    transition: transform 1.9s ease;  /* plynulé */
     transform-origin: center center;
   }
   .card:hover .media img {
-    transform: scale(1.2);     /* jemný zoom */
+    transform: scale(1.3);     /* jemný zoom */
   }
 }
 
