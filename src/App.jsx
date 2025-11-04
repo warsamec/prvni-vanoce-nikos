@@ -40,6 +40,18 @@ const DEFAULT_GIFTS = [
 ];
 
 /* Pomocné utility */
+
+// Náhodné promíchání pole (Fisher–Yates)
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+
 const currency = (n) =>
   typeof n === "number"
     ? n.toLocaleString("cs-CZ", { style: "currency", currency: "CZK" })
@@ -256,13 +268,17 @@ export default function App() {
     })();
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((g) =>
-      [g.title, g.note, g.link].filter(Boolean).some((v) => v.toLowerCase().includes(q))
-    );
-  }, [items, query]);
+const filtered = useMemo(() => {
+  const q = query.trim().toLowerCase();
+  const base = !q
+    ? items
+    : items.filter((g) =>
+        [g.title, g.note, g.link]
+          .filter(Boolean)
+          .some((v) => v.toLowerCase().includes(q))
+      );
+  return shuffle(base);
+}, [items, query]);
 
   async function handleReserve() {
     const em = email.trim();
