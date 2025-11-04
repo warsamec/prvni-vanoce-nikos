@@ -346,61 +346,95 @@ export default function App() {
   return (
     <>
       {/* Sticky header s nadpisem a skrytým admin tlačítkem vpravo */}
-      <header
-        className="header"
-        style={{ position: "sticky", top: 0, zIndex: 60, backdropFilter: "saturate(180%) blur(8px)", background: "rgba(255,255,255,.75)" }}
-      >
-        <div className="container header-bar header-compact" style={{ position: "relative" }}>
-          <h1 className="header-title">🎁 Vánoční dárky pro Nikoska 🎄</h1>
+<header
+  className="header"
+  style={{
+    position: "sticky",
+    top: 0,
+    zIndex: 60,
+    backdropFilter: "saturate(180%) blur(8px)",
+    background: "rgba(15,23,42,.8)",        // ◀️ tmavé polopropustné (slate-900, 80%)
+    color: "#fff",                            // ◀️ bílý text
+    borderBottom: "1px solid rgba(255,255,255,.08)", // jemná linka
+  }}
+>
+  <div className="container header-bar header-compact" style={{ position: "relative" }}>
+    <h1 className="header-title" style={{ color: "#fff" }}>
+      🎁 Vánoční dárky pro Nikoska 🎄
+    </h1>
 
-          <div className="admin-button-wrapper" ref={adminWrapRef}>
-            {!admin ? (
-              <button
-                className="admin-button"
-                onClick={() => setAdminMenuOpen((v) => !v)}
-                aria-expanded={adminMenuOpen}
-                title="Admin přihlášení"
-              >
-                ⚙️
-              </button>
-            ) : (
-              <button
-                className="admin-button admin-active"
-                onClick={() => setAdmin(false)}
-                title="Odhlásit admin"
-              >
-                ✖
-              </button>
-            )}
+    <div className="admin-button-wrapper" ref={adminWrapRef}>
+      {!admin ? (
+        <button
+          className="admin-button"
+          onClick={() => setAdminMenuOpen((v) => !v)}
+          aria-expanded={adminMenuOpen}
+          title="Admin přihlášení"
+          style={{
+            background: "rgba(255,255,255,.06)",
+            border: "1px solid rgba(255,255,255,.18)",
+            color: "#fff",
+          }}
+        >
+          ⚙️
+        </button>
+      ) : (
+        <button
+          className="admin-button admin-active"
+          onClick={() => setAdmin(false)}
+          title="Odhlásit admin"
+          style={{
+            background: "rgba(255,255,255,.12)",
+            border: "1px solid rgba(255,255,255,.22)",
+            color: "#fff",
+          }}
+        >
+          ✖
+        </button>
+      )}
 
-            {adminMenuOpen && !admin && (
-              <div className="admin-popup">
-                <label htmlFor="pin" className="block text-xs text-slate-400 mb-1">
-                  Zadejte PIN
-                </label>
-                <input
-                  id="pin"
-                  type="password"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  className="w-full rounded-lg border border-slate-600 bg-slate-800 text-white px-3 py-2 mb-2 text-sm"
-                />
-                <button
-                  onClick={() => {
-                    if (pinInput === ADMIN_PIN) {
-                      setAdmin(true);
-                      setAdminMenuOpen(false);
-                    }
-                  }}
-                  className="w-full rounded-lg bg-emerald-600 text-white py-1.5 text-sm hover:bg-emerald-700"
-                >
-                  Přihlásit
-                </button>
-              </div>
-            )}
-          </div>
+      {adminMenuOpen && !admin && (
+        <div
+          className="admin-popup"
+          style={{
+            background: "rgba(15,23,42,.95)",
+            border: "1px solid rgba(255,255,255,.12)",
+            color: "#fff",
+          }}
+        >
+          <label htmlFor="pin" className="block text-xs mb-1" style={{ color: "rgba(255,255,255,.75)" }}>
+            Zadejte PIN
+          </label>
+          <input
+            id="pin"
+            type="password"
+            value={pinInput}
+            onChange={(e) => setPinInput(e.target.value)}
+            className="w-full rounded-lg px-3 py-2 mb-2 text-sm"
+            style={{
+              border: "1px solid rgba(255,255,255,.2)",
+              background: "rgba(2,6,23,.6)",
+              color: "#fff",
+            }}
+          />
+          <button
+            onClick={() => {
+              if (pinInput === ADMIN_PIN) {
+                setAdmin(true);
+                setAdminMenuOpen(false);
+              }
+            }}
+            className="w-full rounded-lg text-white py-1.5 text-sm"
+            style={{ background: "rgb(5,150,105)" }} // emerald-600
+          >
+            Přihlásit
+          </button>
         </div>
-      </header>
+      )}
+    </div>
+  </div>
+</header>
+
 
       <main className="container">
         <div className="toolbar">
