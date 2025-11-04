@@ -207,6 +207,10 @@ function ModalPortal({ children }) {
 export default function App() {
   const store = useDataStore();
 
+  const [reserveNotice, setReserveNotice] = useState(""); // text vevnitř modalu po úspěchu
+const [reserveSending, setReserveSending] = useState(false); // spinner/disable během odeslání
+
+
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState("");
@@ -278,42 +282,49 @@ export default function App() {
     return shuffle(base);
   }, [items, query]);
 
-  async function handleReserve() {
-    const em = email.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
-      setInfo("Zadejte platný e-mail");
-      return;
-    }
-    try {
-      const token = genToken();
-      const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
-      setItems(await store.listGifts());
-      setReserveModal({ open: false, giftId: "" });
-      setEmail("");
-      setInfo("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem.");
-      try {
-        const origin = location.origin + location.pathname;
-        const r = await fetch("/.netlify/functions/send-confirmation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to: em,
-            giftTitle: gift.title,
-            giftLink: gift.link || "",
-            token,
-            origin,
-          }),
-        });
-        if (!r.ok) throw new Error(await r.text());
-      } catch {
-        setInfo("Odeslání e-mailu se nepodařilo (zkontrolujte Resend konfiguraci).");
-      }
-      setTimeout(() => setInfo(""), 7000);
-    } catch (e) {
-      setInfo(e.message || "Rezervace selhala");
-      setTimeout(() => setInfo(""), 4000);
-    }
+async function handleReserve() {
+  const em = email.trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
+    setReserveNotice("Zadejte platný e-mail.");
+    return;
   }
+
+  setReserveSending(true);
+  setReserveNotice(""); // smaž starší zprávu
+
+  try {
+    const token = crypto.getRandomValues(new Uint32Array(4)).join("");
+    const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
+
+    // Nezavíráme modal — rovnou informujeme v modalu
+    setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem.");
+
+    try {
+      const origin = location.origin + location.pathname;
+      const r = await fetch("/.netlify/functions/send-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: em,
+          giftTitle: gift.title,
+          giftLink: gift.link || "",
+          token,
+          origin,
+        }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      // jemné doplnění k první zprávě
+      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. E-mail byl odeslán.");
+    } catch {
+      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat.");
+    }
+  } catch (e) {
+    setReserveNotice(e.message || "Rezervace selhala");
+  } finally {
+    setReserveSending(false);
+  }
+}
+
 
   async function handleUnreserve(id) {
     try {
@@ -502,32 +513,57 @@ export default function App() {
             }}
             style={{ zIndex: 1000 }}
           >
-            <div className="modal-card">
-              <h3>Potvrdit rezervaci</h3>
-              <p style={{ color: "var(--muted)" }}>
-                Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude
-                dárek uzamčen.
-              </p>
-              <input
-                className="input"
-                type="email"
-                placeholder="vas@email.cz"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
-                <button
-                  className="btn secondary"
-                  onClick={() => setReserveModal({ open: false, giftId: "" })}
-                >
-                  Zrušit
-                </button>
-                <button className="btn" onClick={handleReserve}>
-                  Poslat potvrzení
-                </button>
-              </div>
-            </div>
-          </div>
+<div className="modal-card">
+  {!reserveNotice ? (
+    <>
+      <h3>Potvrdit rezervaci</h3>
+      <p style={{ color: "var(--muted)" }}>
+        Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude dárek uzamčen.
+      </p>
+      <input
+        className="input"
+        type="email"
+        placeholder="vas@email.cz"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        disabled={reserveSending}
+      />
+      <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
+        <button
+          className="btn secondary"
+          onClick={() => setReserveModal({ open: false, giftId: "" })}
+          disabled={reserveSending}
+        >
+          Zrušit
+        </button>
+        <button className="btn" onClick={handleReserve} disabled={reserveSending}>
+          {reserveSending ? "Odesílám…" : "Poslat potvrzení"}
+        </button>
+      </div>
+    </>
+  ) : (
+    <>
+      <h3>Hotovo ✅</h3>
+      <p style={{ color: "var(--muted)" }}>
+        {reserveNotice}
+      </p>
+      <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
+        <button
+          className="btn"
+          onClick={() => {
+            // zavřít modal a vyčistit stav
+            setReserveModal({ open: false, giftId: "" });
+            setEmail("");
+            setReserveNotice("");
+          }}
+        >
+          Zavřít
+        </button>
+      </div>
+    </>
+  )}
+</div>
+
         </ModalPortal>
       )}
 
