@@ -225,14 +225,9 @@ export default function App() {
   const [reserveNotice, setReserveNotice] = useState("");
   const [reserveSending, setReserveSending] = useState(false);
 
-  // Stabilní pořadí per zařízení
-  const [orderMap, setOrderMap] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("nikos-order") || "{}");
-    } catch {
-      return {};
-    }
-  });
+  // --- Stabilní pořadí jen po dobu návštěvy (reset při reloadu) ---
+  const [orderMap, setOrderMap] = useState({});
+  const orderInitRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -241,6 +236,33 @@ export default function App() {
       setLoading(false);
     })();
   }, []);
+
+  // Inicializace náhodného pořadí POUZE jednou po prvním načtení položek
+  useEffect(() => {
+    if (orderInitRef.current) return;
+    if (!items.length) return;
+    const map = {};
+    for (const g of items) {
+      map[g.id] = crypto.getRandomValues(new Uint32Array(1))[0];
+    }
+    setOrderMap(map);
+    orderInitRef.current = true;
+  }, [items]);
+
+  // Pokud přibydou nové položky po inicializaci, přiřaď jim nové klíče,
+  // ale existující položky NEMĚŇ (stálé pořadí v rámci návštěvy).
+  useEffect(() => {
+    if (!orderInitRef.current || !items.length) return;
+    const next = { ...orderMap };
+    let changed = false;
+    for (const g of items) {
+      if (next[g.id] == null) {
+        next[g.id] = crypto.getRandomValues(new Uint32Array(1))[0];
+        changed = true;
+      }
+    }
+    if (changed) setOrderMap(next);
+  }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Po potvrzovacím odkazu
   useEffect(() => {
@@ -262,24 +284,6 @@ export default function App() {
     })();
   }, []);
 
-  // Doplň chybějící klíče do orderMap a persistuj
-  useEffect(() => {
-    if (!items.length) return;
-    const next = { ...orderMap };
-    let changed = false;
-    for (const g of items) {
-      if (next[g.id] == null) {
-        next[g.id] = crypto.getRandomValues(new Uint32Array(1))[0];
-        changed = true;
-      }
-    }
-    if (changed) {
-      setOrderMap(next);
-      localStorage.setItem("nikos-order", JSON.stringify(next));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const base = !q
@@ -289,7 +293,9 @@ export default function App() {
             .filter(Boolean)
             .some((v) => v.toLowerCase().includes(q))
         );
-    // stabilní řazení podle uloženého klíče
+    // Pokud ještě není připraven orderMap (první milisekundy), vrať base.
+    if (!Object.keys(orderMap).length) return base;
+    // Stabilní řazení podle vygenerovaných klíčů (nemění se během návštěvy)
     return [...base].sort((a, b) => {
       const ka = orderMap[a.id] ?? 0;
       const kb = orderMap[b.id] ?? 0;
@@ -312,7 +318,7 @@ export default function App() {
       const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
 
       // Nezavíráme modal — informujeme přímo uvnitř
-      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem.");
+      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem.");
 
       try {
         const origin = location.origin + location.pathname;
@@ -329,18 +335,18 @@ export default function App() {
         });
         if (!r.ok) throw new Error(await r.text());
         setReserveNotice(
-          "Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem. E-mail byl odeslán."
+          "Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. E-mail byl odeslán."
         );
       } catch {
         setReserveNotice(
-          "Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat."
+          "Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat."
         );
       }
     } catch (e) {
       setReserveNotice(e.message || "Rezervace selhala");
     } finally {
       setReserveSending(false);
-      setItems(await store.listGifts()); // přepne kartu do "pending", ale pořadí zůstává
+      setItems(await store.listGifts()); // karta se přepne do "pending", pořadí zůstává stejné
     }
   }
 
@@ -474,7 +480,7 @@ export default function App() {
             onChange={(e) => setQuery(e.target.value)}
           />
 
-        {admin && (
+          {admin && (
             <div className="row" style={{ marginLeft: "auto" }}>
               <button className="btn ghost" onClick={() => setAdmin(false)}>
                 Odhlásit admin
