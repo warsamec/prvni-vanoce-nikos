@@ -362,75 +362,7 @@ const filtered = useMemo(() => {
             onChange={(e) => setQuery(e.target.value)}
           />
 
-          {!admin ? (
-            <div className="pop" ref={popRef}>
-              <button
-                className="btn secondary"
-                onClick={() => setAdminMenuOpen((v) => !v)}
-                aria-expanded={adminMenuOpen}
-                aria-haspopup="true"
-              >
-                Admin
-              </button>
 
-              {adminMenuOpen && (
-                <div
-                  className="pop-panel"
-                  role="dialog"
-                  aria-label="Admin přihlášení"
-                  style={{ zIndex: 50 }}
-                >
-                  <div
-                    className="row"
-                    style={{
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 6,
-                    }}
-                  >
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                      Zadejte PIN
-                    </div>
-                    <button
-                      className="btn ghost"
-                      onClick={() => setAdminMenuOpen(false)}
-                      style={{ padding: "6px 8px" }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <input
-                    className="input"
-                    type="password"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="Admin PIN"
-                    autoFocus
-                  />
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      className="btn ok"
-                      onClick={() => {
-                        setAdmin(pin === ADMIN_PIN);
-                        setAdminMenuOpen(false);
-                      }}
-                      style={{ width: "100%" }}
-                    >
-                      Přihlásit
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="row">
-              <button className="btn ghost" onClick={() => setAdmin(false)}>
-                Odhlásit admin
-              </button>
-              <GiftEditor onSubmit={handleAddOrEdit} />
-            </div>
-          )}
-        </div>
 
         {info && (
           <div
