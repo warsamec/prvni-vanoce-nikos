@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /* === Konfigurace / konstanty === */
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
@@ -174,6 +175,22 @@ function useDataStore() {
     confirmReservationByToken,
     unreserveGift,
   };
+}
+
+/* === React Portal pro modaly (fix „poskakování“) === */
+function ModalPortal({ children }) {
+  const elRef = useRef(null);
+  if (!elRef.current) {
+    elRef.current = document.createElement("div");
+  }
+  useEffect(() => {
+    const el = elRef.current;
+    document.body.appendChild(el);
+    return () => {
+      document.body.removeChild(el);
+    };
+  }, []);
+  return createPortal(children, elRef.current);
 }
 
 /* === Aplikace === */
@@ -447,40 +464,43 @@ export default function App() {
         )}
       </main>
 
-      {/* Modal rezervace */}
+      {/* Modal rezervace – v portálu */}
       {reserveModal.open && (
-        <div
-          className="modal"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setReserveModal({ open: false, giftId: "" });
-          }}
-        >
-          <div className="modal-card">
-            <h3>Potvrdit rezervaci</h3>
-            <p style={{ color: "var(--muted)" }}>
-              Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude
-              dárek uzamčen.
-            </p>
-            <input
-              className="input"
-              type="email"
-              placeholder="vas@email.cz"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
-              <button
-                className="btn secondary"
-                onClick={() => setReserveModal({ open: false, giftId: "" })}
-              >
-                Zrušit
-              </button>
-              <button className="btn" onClick={handleReserve}>
-                Poslat potvrzení
-              </button>
+        <ModalPortal>
+          <div
+            className="modal"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setReserveModal({ open: false, giftId: "" });
+            }}
+            style={{ zIndex: 1000 }}
+          >
+            <div className="modal-card">
+              <h3>Potvrdit rezervaci</h3>
+              <p style={{ color: "var(--muted)" }}>
+                Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude
+                dárek uzamčen.
+              </p>
+              <input
+                className="input"
+                type="email"
+                placeholder="vas@email.cz"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
+                <button
+                  className="btn secondary"
+                  onClick={() => setReserveModal({ open: false, giftId: "" })}
+                >
+                  Zrušit
+                </button>
+                <button className="btn" onClick={handleReserve}>
+                  Poslat potvrzení
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <footer className="footer">
@@ -589,78 +609,81 @@ function GiftEditor({ initial, onSubmit, small }) {
         {initial ? "Upravit" : "Přidat dárek"}
       </button>
       {open && (
-        <div
-          className="modal"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setOpen(false);
-          }}
-        >
-          <div className="modal-card" style={{ maxWidth: 700 }}>
-            <h3>{initial ? "Upravit dárek" : "Přidat nový dárek"}</h3>
-            <div
-              className="grid"
-              style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}
-            >
-              <Field label="ID (unikátní, bez mezer)">
-                <input
-                  className="input"
-                  value={form.id}
-                  onChange={(e) => setForm({ ...form, id: e.target.value })}
-                  placeholder="např. duplo-zviratka"
-                />
-              </Field>
-              <Field label="Název">
-                <input
-                  className="input"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="Název dárku"
-                />
-              </Field>
-              <Field label="Odkaz na produkt (URL)">
-                <input
-                  className="input"
-                  value={form.link}
-                  onChange={(e) => setForm({ ...form, link: e.target.value })}
-                  placeholder="https://…"
-                />
-              </Field>
-              <Field label="Obrázek (URL)">
-                <input
-                  className="input"
-                  value={form.image}
-                  onChange={(e) => setForm({ ...form, image: e.target.value })}
-                  placeholder="https://…"
-                />
-              </Field>
-              <Field label="Orientační cena (Kč)">
-                <input
-                  className="input"
-                  type="number"
-                  value={form.priceCZK}
-                  onChange={(e) => setForm({ ...form, priceCZK: e.target.value })}
-                  placeholder="např. 999"
-                />
-              </Field>
-              <Field label="Poznámka">
-                <input
-                  className="input"
-                  value={form.note}
-                  onChange={(e) => setForm({ ...form, note: e.target.value })}
-                  placeholder="Velikost, barva, tipy…"
-                />
-              </Field>
-            </div>
-            <div className="row" style={{ justifyContent: "flex-end", marginTop: 12 }}>
-              <button className="btn secondary" onClick={() => setOpen(false)}>
-                Zavřít
-              </button>
-              <button className="btn" onClick={save}>
-                Uložit
-              </button>
+        <ModalPortal>
+          <div
+            className="modal"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setOpen(false);
+            }}
+            style={{ zIndex: 1000 }}
+          >
+            <div className="modal-card" style={{ maxWidth: 700 }}>
+              <h3>{initial ? "Upravit dárek" : "Přidat nový dárek"}</h3>
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}
+              >
+                <Field label="ID (unikátní, bez mezer)">
+                  <input
+                    className="input"
+                    value={form.id}
+                    onChange={(e) => setForm({ ...form, id: e.target.value })}
+                    placeholder="např. duplo-zviratka"
+                  />
+                </Field>
+                <Field label="Název">
+                  <input
+                    className="input"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    placeholder="Název dárku"
+                  />
+                </Field>
+                <Field label="Odkaz na produkt (URL)">
+                  <input
+                    className="input"
+                    value={form.link}
+                    onChange={(e) => setForm({ ...form, link: e.target.value })}
+                    placeholder="https://…"
+                  />
+                </Field>
+                <Field label="Obrázek (URL)">
+                  <input
+                    className="input"
+                    value={form.image}
+                    onChange={(e) => setForm({ ...form, image: e.target.value })}
+                    placeholder="https://…"
+                  />
+                </Field>
+                <Field label="Orientační cena (Kč)">
+                  <input
+                    className="input"
+                    type="number"
+                    value={form.priceCZK}
+                    onChange={(e) => setForm({ ...form, priceCZK: e.target.value })}
+                    placeholder="např. 999"
+                  />
+                </Field>
+                <Field label="Poznámka">
+                  <input
+                    className="input"
+                    value={form.note}
+                    onChange={(e) => setForm({ ...form, note: e.target.value })}
+                    placeholder="Velikost, barva, tipy…"
+                  />
+                </Field>
+              </div>
+              <div className="row" style={{ justifyContent: "flex-end", marginTop: 12 }}>
+                <button className="btn secondary" onClick={() => setOpen(false)}>
+                  Zavřít
+                </button>
+                <button className="btn" onClick={save}>
+                  Uložit
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </>
   );
