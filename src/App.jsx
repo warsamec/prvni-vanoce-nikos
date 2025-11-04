@@ -348,7 +348,7 @@ export default function App() {
       {/* Kompaktní header s nadpisem a skrytým admin tlačítkem vpravo */}
       <header className="header" style={{ position: "relative" }}>
         <div className="container header-bar header-compact">
-          <h1 className="header-title">🎁 Seznam vánočních dárků pro Nikoska 🎄</h1>
+          <h1 className="header-title">🎁 Vánoční dárky pro Nikoska 🎄</h1>
 
           <div className="admin-button-wrapper" ref={adminWrapRef}>
             {!admin ? (
