@@ -187,7 +187,6 @@ function useDataStore() {
   };
 }
 
-/* === React Portal pro modaly (fix „poskakování“) === */
 function ModalPortal({ children }) {
   const elRef = useRef(null);
   if (!elRef.current) {
@@ -203,22 +202,14 @@ function ModalPortal({ children }) {
   return createPortal(children, elRef.current);
 }
 
-/* === Aplikace === */
 export default function App() {
   const store = useDataStore();
-
-  const [reserveNotice, setReserveNotice] = useState(""); // text vevnitř modalu po úspěchu
-const [reserveSending, setReserveSending] = useState(false); // spinner/disable během odeslání
-
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState("");
-
   const [admin, setAdmin] = useState(false);
   const [pinInput, setPinInput] = useState("");
-
-  // Admin popover v headeru
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const adminWrapRef = useRef(null);
   useEffect(() => {
@@ -241,6 +232,8 @@ const [reserveSending, setReserveSending] = useState(false); // spinner/disable 
   const [reserveModal, setReserveModal] = useState({ open: false, giftId: "" });
   const [email, setEmail] = useState("");
   const [info, setInfo] = useState("");
+  const [reserveNotice, setReserveNotice] = useState(""); // text přímo v modalu
+  const [reserveSending, setReserveSending] = useState(false); // disable během odeslání
 
   useEffect(() => {
     (async () => {
@@ -250,7 +243,6 @@ const [reserveSending, setReserveSending] = useState(false); // spinner/disable 
     })();
   }, []);
 
-  /* Auto-confirm přes #confirm=TOKEN */
   useEffect(() => {
     (async () => {
       const h = location.hash;
@@ -282,49 +274,53 @@ const [reserveSending, setReserveSending] = useState(false); // spinner/disable 
     return shuffle(base);
   }, [items, query]);
 
-async function handleReserve() {
-  const em = email.trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
-    setReserveNotice("Zadejte platný e-mail.");
-    return;
-  }
+  async function handleReserve() {
+    const em = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
+      setReserveNotice("Zadejte platný e-mail.");
+      return;
+    }
 
-  setReserveSending(true);
-  setReserveNotice(""); // smaž starší zprávu
-
-  try {
-    const token = crypto.getRandomValues(new Uint32Array(4)).join("");
-    const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
-
-    // Nezavíráme modal — rovnou informujeme v modalu
-    setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem.");
+    setReserveSending(true);
+    setReserveNotice("");
 
     try {
-      const origin = location.origin + location.pathname;
-      const r = await fetch("/.netlify/functions/send-confirmation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: em,
-          giftTitle: gift.title,
-          giftLink: gift.link || "",
-          token,
-          origin,
-        }),
-      });
-      if (!r.ok) throw new Error(await r.text());
-      // jemné doplnění k první zprávě
-      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. E-mail byl odeslán.");
-    } catch {
-      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat.");
-    }
-  } catch (e) {
-    setReserveNotice(e.message || "Rezervace selhala");
-  } finally {
-    setReserveSending(false);
-  }
-}
+      const token = genToken();
+      const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
 
+      // Zobrazíme informaci přímo v modalu (nezavíráme ho hned)
+      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem.");
+
+      try {
+        const origin = location.origin + location.pathname;
+        const r = await fetch("/.netlify/functions/send-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: em,
+            giftTitle: gift.title,
+            giftLink: gift.link || "",
+            token,
+            origin,
+          }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        setReserveNotice(
+          "Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. E-mail byl odeslán."
+        );
+      } catch {
+        setReserveNotice(
+          "Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat."
+        );
+      }
+    } catch (e) {
+      setReserveNotice(e.message || "Rezervace selhala");
+    } finally {
+      setReserveSending(false);
+      // po potvrzení stavu obnovíme list, aby se karta přepnula do „pending“
+      setItems(await store.listGifts());
+    }
+  }
 
   async function handleUnreserve(id) {
     try {
@@ -356,96 +352,95 @@ async function handleReserve() {
 
   return (
     <>
-      {/* Sticky header s nadpisem a skrytým admin tlačítkem vpravo */}
-<header
-  className="header"
-  style={{
-    position: "sticky",
-    top: 0,
-    zIndex: 60,
-    backdropFilter: "saturate(180%) blur(8px)",
-    background: "rgba(15,23,42,.8)",        // ◀️ tmavé polopropustné (slate-900, 80%)
-    color: "#fff",                            // ◀️ bílý text
-    borderBottom: "1px solid rgba(255,255,255,.08)", // jemná linka
-  }}
->
-  <div className="container header-bar header-compact" style={{ position: "relative" }}>
-    <h1 className="header-title" style={{ color: "#fff" }}>
-      🎁 Vánoční dárky pro Nikoska 🎄
-    </h1>
+      {/* Sticky tmavý header */}
+      <header
+        className="header"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 60,
+          backdropFilter: "saturate(180%) blur(8px)",
+          background: "rgba(15,23,42,.8)", // tmavé polopropustné
+          color: "#fff",
+          borderBottom: "1px solid rgba(255,255,255,.08)",
+        }}
+      >
+        <div className="container header-bar header-compact" style={{ position: "relative" }}>
+          <h1 className="header-title" style={{ color: "#fff" }}>
+            🎁 Vánoční dárky pro Nikoska 🎄
+          </h1>
 
-    <div className="admin-button-wrapper" ref={adminWrapRef}>
-      {!admin ? (
-        <button
-          className="admin-button"
-          onClick={() => setAdminMenuOpen((v) => !v)}
-          aria-expanded={adminMenuOpen}
-          title="Admin přihlášení"
-          style={{
-            background: "rgba(255,255,255,.06)",
-            border: "1px solid rgba(255,255,255,.18)",
-            color: "#fff",
-          }}
-        >
-          ⚙️
-        </button>
-      ) : (
-        <button
-          className="admin-button admin-active"
-          onClick={() => setAdmin(false)}
-          title="Odhlásit admin"
-          style={{
-            background: "rgba(255,255,255,.12)",
-            border: "1px solid rgba(255,255,255,.22)",
-            color: "#fff",
-          }}
-        >
-          ✖
-        </button>
-      )}
+          <div className="admin-button-wrapper" ref={adminWrapRef}>
+            {!admin ? (
+              <button
+                className="admin-button"
+                onClick={() => setAdminMenuOpen((v) => !v)}
+                aria-expanded={adminMenuOpen}
+                title="Admin přihlášení"
+                style={{
+                  background: "rgba(255,255,255,.06)",
+                  border: "1px solid rgba(255,255,255,.18)",
+                  color: "#fff",
+                }}
+              >
+                ⚙️
+              </button>
+            ) : (
+              <button
+                className="admin-button admin-active"
+                onClick={() => setAdmin(false)}
+                title="Odhlásit admin"
+                style={{
+                  background: "rgba(255,255,255,.12)",
+                  border: "1px solid rgba(255,255,255,.22)",
+                  color: "#fff",
+                }}
+              >
+                ✖
+              </button>
+            )}
 
-      {adminMenuOpen && !admin && (
-        <div
-          className="admin-popup"
-          style={{
-            background: "rgba(15,23,42,.95)",
-            border: "1px solid rgba(255,255,255,.12)",
-            color: "#fff",
-          }}
-        >
-          <label htmlFor="pin" className="block text-xs mb-1" style={{ color: "rgba(255,255,255,.75)" }}>
-            Zadejte PIN
-          </label>
-          <input
-            id="pin"
-            type="password"
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            className="w-full rounded-lg px-3 py-2 mb-2 text-sm"
-            style={{
-              border: "1px solid rgba(255,255,255,.2)",
-              background: "rgba(2,6,23,.6)",
-              color: "#fff",
-            }}
-          />
-          <button
-            onClick={() => {
-              if (pinInput === ADMIN_PIN) {
-                setAdmin(true);
-                setAdminMenuOpen(false);
-              }
-            }}
-            className="w-full rounded-lg text-white py-1.5 text-sm"
-            style={{ background: "rgb(5,150,105)" }} // emerald-600
-          >
-            Přihlásit
-          </button>
+            {adminMenuOpen && !admin && (
+              <div
+                className="admin-popup"
+                style={{
+                  background: "rgba(15,23,42,.95)",
+                  border: "1px solid rgba(255,255,255,.12)",
+                  color: "#fff",
+                }}
+              >
+                <label htmlFor="pin" className="block text-xs mb-1" style={{ color: "rgba(255,255,255,.75)" }}>
+                  Zadejte PIN
+                </label>
+                <input
+                  id="pin"
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 mb-2 text-sm"
+                  style={{
+                    border: "1px solid rgba(255,255,255,.2)",
+                    background: "rgba(2,6,23,.6)",
+                    color: "#fff)",
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (pinInput === ADMIN_PIN) {
+                      setAdmin(true);
+                      setAdminMenuOpen(false);
+                    }
+                  }}
+                  className="w-full rounded-lg text-white py-1.5 text-sm"
+                  style={{ background: "rgb(5,150,105)" }}
+                >
+                  Přihlásit
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
-  </div>
-</header>
-
+      </header>
 
       <main className="container">
         <div className="toolbar">
@@ -475,7 +470,7 @@ async function handleReserve() {
               marginBottom: 12,
               background: "rgba(124,58,237,.15)",
               borderColor: "rgba(124,58,237,.35)",
-              color: "#e9d5ff",
+              color: "#e9d5ff)",
             }}
           >
             {info}
@@ -513,57 +508,54 @@ async function handleReserve() {
             }}
             style={{ zIndex: 1000 }}
           >
-<div className="modal-card">
-  {!reserveNotice ? (
-    <>
-      <h3>Potvrdit rezervaci</h3>
-      <p style={{ color: "var(--muted)" }}>
-        Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude dárek uzamčen.
-      </p>
-      <input
-        className="input"
-        type="email"
-        placeholder="vas@email.cz"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        disabled={reserveSending}
-      />
-      <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
-        <button
-          className="btn secondary"
-          onClick={() => setReserveModal({ open: false, giftId: "" })}
-          disabled={reserveSending}
-        >
-          Zrušit
-        </button>
-        <button className="btn" onClick={handleReserve} disabled={reserveSending}>
-          {reserveSending ? "Odesílám…" : "Poslat potvrzení"}
-        </button>
-      </div>
-    </>
-  ) : (
-    <>
-      <h3>Hotovo ✅</h3>
-      <p style={{ color: "var(--muted)" }}>
-        {reserveNotice}
-      </p>
-      <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
-        <button
-          className="btn"
-          onClick={() => {
-            // zavřít modal a vyčistit stav
-            setReserveModal({ open: false, giftId: "" });
-            setEmail("");
-            setReserveNotice("");
-          }}
-        >
-          Zavřít
-        </button>
-      </div>
-    </>
-  )}
-</div>
-
+            <div className="modal-card">
+              {!reserveNotice ? (
+                <>
+                  <h3>Potvrdit rezervaci</h3>
+                  <p style={{ color: "var(--muted)" }}>
+                    Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude dárek uzamčen.
+                  </p>
+                  <input
+                    className="input"
+                    type="email"
+                    placeholder="vas@email.cz"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={reserveSending}
+                  />
+                  <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
+                    <button
+                      className="btn secondary"
+                      onClick={() => setReserveModal({ open: false, giftId: "" })}
+                      disabled={reserveSending}
+                    >
+                      Zrušit
+                    </button>
+                    <button className="btn" onClick={handleReserve} disabled={reserveSending}>
+                      {reserveSending ? "Odesílám…" : "Poslat potvrzení"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3>Hotovo ✅</h3>
+                  <p style={{ color: "var(--muted)" }}>{reserveNotice}</p>
+                  <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        setReserveModal({ open: false, giftId: "" });
+                        setEmail("");
+                        setReserveNotice("");
+                      }}
+                    >
+                      Zavřít
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </ModalPortal>
       )}
 
@@ -579,7 +571,6 @@ async function handleReserve() {
   );
 }
 
-/* === Prezentace karet / editor === */
 function GiftCard({ gift, admin, onReserve, onUnreserve, onDelete, onEdit }) {
   const status = gift.reservation?.status || null;
   const confirmed = status === "confirmed";
