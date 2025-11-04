@@ -187,6 +187,7 @@ function useDataStore() {
   };
 }
 
+/* === React Portal pro modaly (fix „poskakování“) === */
 function ModalPortal({ children }) {
   const elRef = useRef(null);
   if (!elRef.current) {
@@ -202,14 +203,18 @@ function ModalPortal({ children }) {
   return createPortal(children, elRef.current);
 }
 
+/* === Aplikace === */
 export default function App() {
   const store = useDataStore();
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState("");
+
   const [admin, setAdmin] = useState(false);
   const [pinInput, setPinInput] = useState("");
+
+  // Admin popover v headeru
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const adminWrapRef = useRef(null);
   useEffect(() => {
@@ -241,6 +246,7 @@ export default function App() {
     })();
   }, []);
 
+  /* Auto-confirm přes #confirm=TOKEN */
   useEffect(() => {
     (async () => {
       const h = location.hash;
@@ -279,7 +285,7 @@ export default function App() {
       return;
     }
     try {
-      const token = crypto.getRandomValues(new Uint32Array(4)).join("");
+      const token = genToken();
       const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
       setItems(await store.listGifts());
       setReserveModal({ open: false, giftId: "" });
@@ -290,10 +296,403 @@ export default function App() {
         const r = await fetch("/.netlify/functions/send-confirmation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to: em, giftTitle: gift.title, giftLink: gift.link || "", token, origin }),
+          body: JSON.stringify({
+            to: em,
+            giftTitle: gift.title,
+            giftLink: gift.link || "",
+            token,
+            origin,
+          }),
         });
         if (!r.ok) throw new Error(await r.text());
       } catch {
         setInfo("Odeslání e-mailu se nepodařilo (zkontrolujte Resend konfiguraci).");
       }
-      setTimeout(() => setInfo("")
+      setTimeout(() => setInfo(""), 7000);
+    } catch (e) {
+      setInfo(e.message || "Rezervace selhala");
+      setTimeout(() => setInfo(""), 4000);
+    }
+  }
+
+  async function handleUnreserve(id) {
+    try {
+      await store.unreserveGift(id);
+      setItems(await store.listGifts());
+    } catch (e) {
+      alert(e.message || e);
+    }
+  }
+  async function handleAddOrEdit(g) {
+    try {
+      await store.upsertGift(g);
+      setItems(await store.listGifts());
+      setInfo("Dárek uložen.");
+      setTimeout(() => setInfo(""), 2000);
+    } catch (e) {
+      alert(`Uložení selhalo: ${e?.message || e}`);
+    }
+  }
+  async function handleDelete(id) {
+    if (!confirm("Opravdu smazat tento dárek?")) return;
+    try {
+      await store.removeGift(id);
+      setItems(await store.listGifts());
+    } catch (e) {
+      alert(`Smazání selhalo: ${e?.message || e}`);
+    }
+  }
+
+  return (
+    <>
+      {/* Sticky header s nadpisem a skrytým admin tlačítkem vpravo */}
+      <header
+        className="header"
+        style={{ position: "sticky", top: 0, zIndex: 60, backdropFilter: "saturate(180%) blur(8px)", background: "rgba(255,255,255,.75)" }}
+      >
+        <div className="container header-bar header-compact" style={{ position: "relative" }}>
+          <h1 className="header-title">🎁 Vánoční dárky pro Nikoska 🎄</h1>
+
+          <div className="admin-button-wrapper" ref={adminWrapRef}>
+            {!admin ? (
+              <button
+                className="admin-button"
+                onClick={() => setAdminMenuOpen((v) => !v)}
+                aria-expanded={adminMenuOpen}
+                title="Admin přihlášení"
+              >
+                ⚙️
+              </button>
+            ) : (
+              <button
+                className="admin-button admin-active"
+                onClick={() => setAdmin(false)}
+                title="Odhlásit admin"
+              >
+                ✖
+              </button>
+            )}
+
+            {adminMenuOpen && !admin && (
+              <div className="admin-popup">
+                <label htmlFor="pin" className="block text-xs text-slate-400 mb-1">
+                  Zadejte PIN
+                </label>
+                <input
+                  id="pin"
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  className="w-full rounded-lg border border-slate-600 bg-slate-800 text-white px-3 py-2 mb-2 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (pinInput === ADMIN_PIN) {
+                      setAdmin(true);
+                      setAdminMenuOpen(false);
+                    }
+                  }}
+                  className="w-full rounded-lg bg-emerald-600 text-white py-1.5 text-sm hover:bg-emerald-700"
+                >
+                  Přihlásit
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="container">
+        <div className="toolbar">
+          <input
+            className="input"
+            type="search"
+            placeholder="Hledat v dárcích…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+
+          {admin && (
+            <div className="row" style={{ marginLeft: "auto" }}>
+              <button className="btn ghost" onClick={() => setAdmin(false)}>
+                Odhlásit admin
+              </button>
+              <GiftEditor onSubmit={handleAddOrEdit} />
+            </div>
+          )}
+        </div>
+
+        {info && (
+          <div
+            className="pill"
+            style={{
+              display: "inline-block",
+              marginBottom: 12,
+              background: "rgba(124,58,237,.15)",
+              borderColor: "rgba(124,58,237,.35)",
+              color: "#e9d5ff",
+            }}
+          >
+            {info}
+          </div>
+        )}
+
+        {loading ? (
+          <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)" }}>
+            Načítám dárky…
+          </div>
+        ) : (
+          <div className="grid">
+            {filtered.map((g) => (
+              <GiftCard
+                key={g.id}
+                gift={g}
+                admin={admin}
+                onReserve={() => setReserveModal({ open: true, giftId: g.id })}
+                onUnreserve={() => handleUnreserve(g.id)}
+                onDelete={() => handleDelete(g.id)}
+                onEdit={(gift) => handleAddOrEdit(gift)}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Modal rezervace – v portálu */}
+      {reserveModal.open && (
+        <ModalPortal>
+          <div
+            className="modal"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setReserveModal({ open: false, giftId: "" });
+            }}
+            style={{ zIndex: 1000 }}
+          >
+            <div className="modal-card">
+              <h3>Potvrdit rezervaci</h3>
+              <p style={{ color: "var(--muted)" }}>
+                Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude
+                dárek uzamčen.
+              </p>
+              <input
+                className="input"
+                type="email"
+                placeholder="vas@email.cz"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
+                <button
+                  className="btn secondary"
+                  onClick={() => setReserveModal({ open: false, giftId: "" })}
+                >
+                  Zrušit
+                </button>
+                <button className="btn" onClick={handleReserve}>
+                  Poslat potvrzení
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      <footer className="footer">
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>
+          {SITE_HAS_SUPABASE
+            ? "Online sdílená verze (Supabase připojeno)"
+            : "Lokální verze (nastavte Supabase)"}
+        </div>
+        {new Date().getFullYear()} • Nikoskův vánoční seznam
+      </footer>
+    </>
+  );
+}
+
+/* === Prezentace karet / editor === */
+function GiftCard({ gift, admin, onReserve, onUnreserve, onDelete, onEdit }) {
+  const status = gift.reservation?.status || null;
+  const confirmed = status === "confirmed";
+  const pending = status === "pending";
+  return (
+    <div className="card" style={{ opacity: confirmed ? 0.65 : 1 }}>
+      {gift.image && (
+        <div className="media">
+          <img src={gift.image} alt="" />
+        </div>
+      )}
+      <div className="body">
+        <div className="row" style={{ alignItems: "flex-start" }}>
+          <h3 style={{ margin: "0 0 2px 0" }}>{gift.title}</h3>
+          {confirmed && <span className="badge ok">Zarezervováno</span>}
+          {pending && <span className="badge pending">Čeká na potvrzení</span>}
+        </div>
+        {typeof gift.priceCZK === "number" && (
+          <div className="price">{currency(gift.priceCZK)}</div>
+        )}
+        {gift.note && <div className="note">{gift.note}</div>}
+        <div className="row hr">
+          {gift.link && (
+            <a className="btn ghost" href={gift.link} target="_blank">
+              Otevřít odkaz
+            </a>
+          )}
+          {!confirmed ? (
+            <button
+              className={"btn ok"}
+              onClick={onReserve}
+              disabled={pending}
+              style={{
+                marginLeft: "auto",
+                opacity: pending ? 0.6 : 1,
+                cursor: pending ? "not-allowed" : "pointer",
+              }}
+            >
+              {pending ? "Odeslán e-mail…" : "Zarezervovat"}
+            </button>
+          ) : (
+            <div style={{ marginLeft: "auto", fontSize: 12, color: "var(--muted)" }}>
+              {gift.reservation?.email && <>pro {maskEmail(gift.reservation.email)}</>}
+            </div>
+          )}
+        </div>
+
+        {admin && (
+          <div className="row hr">
+            {(pending || confirmed) && (
+              <button className="btn ghost" onClick={onUnreserve}>
+                Zrušit rezervaci
+              </button>
+            )}
+            <GiftEditor initial={gift} onSubmit={onEdit} small />
+            <button className="btn danger" onClick={onDelete} style={{ marginLeft: "auto" }}>
+              Smazat
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GiftEditor({ initial, onSubmit, small }) {
+  const [form, setForm] = useState(
+    initial || { id: "", title: "", link: "", image: "", priceCZK: "", note: "" }
+  );
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    setForm(
+      initial || { id: "", title: "", link: "", image: "", priceCZK: "", note: "" }
+    );
+  }, [initial]);
+
+  async function save() {
+    if (!form.id || !form.title) {
+      alert("Vyplňte minimálně ID a Název");
+      return;
+    }
+    const gift = {
+      ...form,
+      priceCZK: form.priceCZK === "" ? undefined : Number(form.priceCZK),
+    };
+    await onSubmit(gift);
+    setOpen(false);
+  }
+
+  return (
+    <>
+      <button
+        className={`btn ${small ? "ghost" : "secondary"}`}
+        onClick={() => setOpen(true)}
+      >
+        {initial ? "Upravit" : "Přidat dárek"}
+      </button>
+      {open && (
+        <ModalPortal>
+          <div
+            className="modal"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setOpen(false);
+            }}
+            style={{ zIndex: 1000 }}
+          >
+            <div className="modal-card" style={{ maxWidth: 700 }}>
+              <h3>{initial ? "Upravit dárek" : "Přidat nový dárek"}</h3>
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}
+              >
+                <Field label="ID (unikátní, bez mezer)">
+                  <input
+                    className="input"
+                    value={form.id}
+                    onChange={(e) => setForm({ ...form, id: e.target.value })}
+                    placeholder="např. duplo-zviratka"
+                  />
+                </Field>
+                <Field label="Název">
+                  <input
+                    className="input"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    placeholder="Název dárku"
+                  />
+                </Field>
+                <Field label="Odkaz na produkt (URL)">
+                  <input
+                    className="input"
+                    value={form.link}
+                    onChange={(e) => setForm({ ...form, link: e.target.value })}
+                    placeholder="https://…"
+                  />
+                </Field>
+                <Field label="Obrázek (URL)">
+                  <input
+                    className="input"
+                    value={form.image}
+                    onChange={(e) => setForm({ ...form, image: e.target.value })}
+                    placeholder="https://…"
+                  />
+                </Field>
+                <Field label="Orientační cena (Kč)">
+                  <input
+                    className="input"
+                    type="number"
+                    value={form.priceCZK}
+                    onChange={(e) => setForm({ ...form, priceCZK: e.target.value })}
+                    placeholder="např. 999"
+                  />
+                </Field>
+                <Field label="Poznámka">
+                  <input
+                    className="input"
+                    value={form.note}
+                    onChange={(e) => setForm({ ...form, note: e.target.value })}
+                    placeholder="Velikost, barva, tipy…"
+                  />
+                </Field>
+              </div>
+              <div className="row" style={{ justifyContent: "flex-end", marginTop: 12 }}>
+                <button className="btn secondary" onClick={() => setOpen(false)}>
+                  Zavřít
+                </button>
+                <button className="btn" onClick={save}>
+                  Uložit
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+    </>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label style={{ display: "block", fontSize: 14 }}>
+      <div style={{ color: "var(--muted)", marginBottom: 6 }}>{label}</div>
+      {children}
+    </label>
+  );
+}
