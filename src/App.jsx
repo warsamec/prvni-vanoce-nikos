@@ -1,14 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-/** Env (Vite replaces at build-time) */
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 const ADMIN_PIN = (import.meta.env && import.meta.env.VITE_ADMIN_PIN) || "nikos2025";
 const SITE_HAS_SUPABASE = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
-
 const TABLE = "gifts_registry";
 
-/** Demo gifts (fallback when no Supabase) */
 const DEFAULT_GIFTS = [
   { id: "duplo-zviratka", title: "LEGO® DUPLO Zvířátka", link: "https://www.lego.com/",
     image: "https://images.unsplash.com/photo-1601758064138-4c3d2a9d6d3e?q=80&w=1200", priceCZK: 899,
@@ -26,7 +23,6 @@ const maskEmail = (email="") => { const [u,d]=String(email).split("@"); if(!u||!
 const genToken = () => crypto.getRandomValues(new Uint32Array(4)).join("");
 
 function useDataStore(){
-  /** Read list */
   async function listGifts(){
     if(SITE_HAS_SUPABASE){
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*`, {
@@ -40,7 +36,6 @@ function useDataStore(){
     return JSON.parse(raw);
   }
 
-  /** Create or update one record (PATCH/POST) */
   async function upsertGift(gift){
     if(!SITE_HAS_SUPABASE){
       const gifts = await listGifts();
@@ -56,21 +51,19 @@ function useDataStore(){
       Prefer: "return=representation"
     };
     const check = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(gift.id)}&select=id`, { headers: baseHeaders });
-    if(!check.ok){ const txt = await check.text().catch(()=> ""); throw new Error(`Supabase select selhal: ${txt}`); }
     const rows = await check.json();
     if(rows.length){
       const { id, ...rest } = gift;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(id)}`, { method:"PATCH", headers: baseHeaders, body: JSON.stringify(rest) });
-      if(!(res.ok || res.status===204)){ const txt=await res.text().catch(()=> ""); throw new Error(`Supabase PATCH selhal: ${txt}`); }
+      if(!(res.ok || res.status===204)) throw new Error(await res.text());
       return gift;
     }else{
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, { method:"POST", headers: baseHeaders, body: JSON.stringify([gift]) });
-      if(!res.ok){ const txt=await res.text().catch(()=> ""); throw new Error(`Supabase POST selhal: ${txt}`); }
+      if(!res.ok) throw new Error(await res.text());
       return gift;
     }
   }
 
-  /** Remove one */
   async function removeGift(id){
     if(!SITE_HAS_SUPABASE){
       const gifts = await listGifts();
@@ -80,37 +73,29 @@ function useDataStore(){
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(id)}`, {
       method:"DELETE", headers:{ apikey: SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}` }
     });
-    if(!res.ok){ const txt=await res.text().catch(()=> ""); throw new Error(`Supabase DELETE selhal: ${txt}`); }
+    if(!res.ok) throw new Error(await res.text());
   }
 
-  /** Create PENDING reservation */
   async function createPendingReservation(id, email, token){
     const gifts = await listGifts();
-    const i = gifts.findIndex(g=>g.id===id);
-    if(i===-1) throw new Error("Dárek nenalezen");
-    const g = gifts[i];
+    const g = gifts.find(x=>x.id===id);
+    if(!g) throw new Error("Dárek nenalezen");
     if(g.reservation?.status === "confirmed") throw new Error("Dárek je již potvrzeně zarezervován");
-
-    const updated = { ...g, reservation: { status:"pending", email, token, at:new Date().toISOString() } };
-    return await upsertGift(updated);
+    return await upsertGift({ ...g, reservation:{ status:"pending", email, token, at:new Date().toISOString() } });
   }
 
-  /** Confirm reservation by token */
   async function confirmReservationByToken(token){
     const items = await listGifts();
     const g = items.find(x => x.reservation?.token === token && x.reservation?.status === "pending");
     if(!g) throw new Error("Neplatný nebo již použitý odkaz");
-    const updated = { ...g, reservation: { ...g.reservation, status:"confirmed", at:new Date().toISOString() } };
-    return await upsertGift(updated);
+    return await upsertGift({ ...g, reservation:{ ...g.reservation, status:"confirmed", at:new Date().toISOString() } });
   }
 
-  /** Unreserve */
   async function unreserveGift(id){
     const items = await listGifts();
     const g = items.find(x=>x.id===id);
     if(!g) throw new Error("Dárek nenalezen");
-    const updated = { ...g, reservation: null };
-    return await upsertGift(updated);
+    return await upsertGift({ ...g, reservation:null });
   }
 
   return { listGifts, upsertGift, removeGift, createPendingReservation, confirmReservationByToken, unreserveGift };
@@ -127,29 +112,10 @@ export default function App(){
   const [email,setEmail]=useState("");
   const [info,setInfo]=useState("");
 
-  // Handle #confirm=TOKEN
-  useEffect(()=>{
-    (async()=>{
-      const hash = window.location.hash;
-      if(hash.startsWith("#confirm=")){
-        const token = decodeURIComponent(hash.replace("#confirm=",""));
-        try{
-          const g = await store.confirmReservationByToken(token);
-          setInfo(`Rezervace potvrzena: ${g.title}`);
-          setItems(await store.listGifts());
-        }catch(e){ setInfo(e.message || "Potvrzení se nepodařilo"); }
-        finally{ window.location.hash=""; setTimeout(()=>setInfo(""), 5000); }
-      }
-    })();
-  },[]);
-
   useEffect(()=>{ (async()=>{ const data=await store.listGifts(); setItems(data); setLoading(false); })(); },[]);
+  useEffect(()=>{ (async()=>{ const h=location.hash; if(h.startsWith("#confirm=")){ const t=decodeURIComponent(h.replace("#confirm=","")); try{ const g=await store.confirmReservationByToken(t); setInfo(`Rezervace potvrzena: ${g.title}`); setItems(await store.listGifts()); }catch(e){ setInfo(e.message||"Potvrzení se nepodařilo"); } finally{ location.hash=""; setTimeout(()=>setInfo(""),5000);} } })(); },[]);
 
-  const filtered = useMemo(()=>{
-    const q = query.trim().toLowerCase();
-    if(!q) return items;
-    return items.filter(g => [g.title,g.note,g.link].filter(Boolean).some(v => v.toLowerCase().includes(q)));
-  },[items,query]);
+  const filtered = useMemo(()=>{ const q=query.trim().toLowerCase(); if(!q) return items; return items.filter(g=>[g.title,g.note,g.link].filter(Boolean).some(v=>v.toLowerCase().includes(q))); },[items,query]);
 
   async function handleReserve(){
     const em = email.trim();
@@ -157,69 +123,58 @@ export default function App(){
     try{
       const token = genToken();
       const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
-      setItems(await store.listGifts());
-      setReserveModal({open:false,giftId:""});
-      setEmail("");
+      setItems(await store.listGifts()); setReserveModal({open:false,giftId:""}); setEmail("");
       setInfo("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem.");
-      // Send email via Netlify Function
       try{
-        const origin = window.location.origin + window.location.pathname;
-        const res = await fetch("/.netlify/functions/send-confirmation", {
-          method:"POST", headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ to: em, giftTitle: gift.title, giftLink: gift.link || "", token, origin })
-        });
-        if(!res.ok) throw new Error(await res.text());
-      }catch(err){ console.error(err); setInfo("Odeslání e-mailu se nepodařilo (zkontrolujte Resend konfiguraci)."); }
-      setTimeout(()=>setInfo(""), 7000);
-    }catch(e){ setInfo(e.message || "Rezervace selhala"); setTimeout(()=>setInfo(""), 4000); }
+        const origin = location.origin + location.pathname;
+        const r = await fetch("/.netlify/functions/send-confirmation",{ method:"POST", headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ to: em, giftTitle: gift.title, giftLink: gift.link||"", token, origin }) });
+        if(!r.ok) throw new Error(await r.text());
+      }catch{ setInfo("Odeslání e-mailu se nepodařilo (zkontrolujte Resend konfiguraci)."); }
+      setTimeout(()=>setInfo(""),7000);
+    }catch(e){ setInfo(e.message||"Rezervace selhala"); setTimeout(()=>setInfo(""),4000); }
   }
 
   async function handleUnreserve(id){ try{ await store.unreserveGift(id); setItems(await store.listGifts()); }catch(e){ alert(e.message||e); } }
-  async function handleAddOrEdit(g){ try{ await store.upsertGift(g); setItems(await store.listGifts()); setInfo("Dárek uložen."); setTimeout(()=>setInfo(""), 2000);}catch(e){ alert(`Uložení selhalo: ${e?.message||e}`); } }
+  async function handleAddOrEdit(g){ try{ await store.upsertGift(g); setItems(await store.listGifts()); setInfo("Dárek uložen."); setTimeout(()=>setInfo(""),2000);}catch(e){ alert(`Uložení selhalo: ${e?.message||e}`); } }
   async function handleDelete(id){ if(!confirm("Opravdu smazat tento dárek?")) return; try{ await store.removeGift(id); setItems(await store.listGifts()); }catch(e){ alert(`Smazání selhalo: ${e?.message||e}`); } }
 
   return (
-    <div>
-      <header style={{position:"sticky",top:0,zIndex:10,backdropFilter:"blur(6px)",background:"#ffffffb3",borderBottom:"1px solid #e2e8f0"}}>
-        <div style={{maxWidth:960,margin:"0 auto",padding:"16px",display:"flex",gap:12,alignItems:"center"}}>
-          <div style={{fontSize:24,fontWeight:700}}>🎁 Seznam dárků pro Nikoska</div>
-          <span style={{marginLeft:"auto",fontSize:12,color:"#64748b"}}>
-            {SITE_HAS_SUPABASE ? "Online sdílená verze (Supabase připojeno)" : "Lokální verze (pro sdílení nastavte Supabase)"}
-          </span>
-          <button onClick={()=>navigator.clipboard.writeText(window.location.href)} style={{marginLeft:8,fontSize:12,borderRadius:999,padding:"6px 10px",background:"#0f172a",color:"#fff"}}>Sdílet odkaz</button>
+    <>
+      <header className="header">
+        <div className="container header-bar">
+          <div className="header-title">🎁 Seznam dárků pro Nikoska</div>
+          <span className="pill">{SITE_HAS_SUPABASE ? "Online sdílená verze (Supabase připojeno)" : "Lokální verze (nastavte Supabase)"}</span>
+          <button className="btn" onClick={()=>navigator.clipboard.writeText(location.href)}>Sdílet odkaz</button>
         </div>
       </header>
 
-      <main style={{maxWidth:960,margin:"0 auto",padding:"24px 16px"}}>
-        <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center",marginBottom:16}}>
-          <input type="search" placeholder="Hledat v dárcích…" value={query} onChange={(e)=>setQuery(e.target.value)}
-            style={{flex:"1 1 280px",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}}/>
-          <div style={{display:"flex",gap:8,marginLeft:"auto"}}>
-            {!admin ? (
-              <details style={{position:"relative"}}>
-                <summary style={{cursor:"pointer",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}}>Admin</summary>
-                <div style={{position:"absolute",right:0,marginTop:8,background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:12,width:256,boxShadow:"0 10px 25px rgba(0,0,0,0.1)"}}>
-                  <label style={{fontSize:12,color:"#475569"}}>Zadejte PIN</label>
-                  <input type="password" value={pin} onChange={(e)=>setPin(e.target.value)}
-                    style={{width:"100%",marginTop:6,borderRadius:8,border:"1px solid #cbd5e1",padding:"8px 10px"}}/>
-                  <button onClick={()=>setAdmin(pin===ADMIN_PIN)} style={{marginTop:8,width:"100%",borderRadius:10,background:"#059669",color:"#fff",padding:"8px 10px"}}>Přihlásit</button>
-                </div>
-              </details>
-            ) : (
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setAdmin(false)} style={{borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}}>Odhlásit admin</button>
-                <GiftEditor onSubmit={handleAddOrEdit} />
+      <main className="container">
+        <div className="toolbar">
+          <input className="input" type="search" placeholder="Hledat v dárcích…" value={query} onChange={(e)=>setQuery(e.target.value)} />
+          {!admin ? (
+            <div className="pop">
+              <button className="btn secondary">Admin</button>
+              <div className="pop-panel">
+                <div style={{fontSize:12,color:"var(--muted)",marginBottom:6}}>Zadejte PIN</div>
+                <input className="input" type="password" value={pin} onChange={(e)=>setPin(e.target.value)} />
+                <div style={{marginTop:8}}><button className="btn ok" onClick={()=>setAdmin(pin===ADMIN_PIN)} style={{width:"100%"}}>Přihlásit</button></div>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="row">
+              <button className="btn ghost" onClick={()=>setAdmin(false)}>Odhlásit admin</button>
+              <GiftEditor onSubmit={handleAddOrEdit} />
+            </div>
+          )}
         </div>
 
-        {info && <div style={{marginBottom:16,borderRadius:12,border:"1px solid #e2e8f0",background:"#fff",padding:12,fontSize:14,color:"#334155"}}>{info}</div>}
+        {info && <div className="pill" style={{display:"inline-block",marginBottom:12,background:"rgba(124,58,237,.15)",borderColor:"rgba(124,58,237,.35)",color:"#e9d5ff"}}>{info}</div>}
 
         {loading ? (
-          <div style={{padding:"48px 0",textAlign:"center",color:"#64748b"}}>Načítám dárky…</div>
+          <div style={{padding:"48px 0",textAlign:"center",color:"var(--muted)"}}>Načítám dárky…</div>
         ) : (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:16}}>
+          <div className="grid">
             {filtered.map(g => (
               <GiftCard key={g.id} gift={g} admin={admin}
                 onReserve={()=>setReserveModal({open:true,giftId:g.id})}
@@ -232,24 +187,23 @@ export default function App(){
       </main>
 
       {reserveModal.open && (
-        <div style={{position:"fixed",inset:0,zIndex:20,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.3)",padding:16}}>
-          <div style={{width:"100%",maxWidth:420,borderRadius:16,background:"#fff",padding:20,boxShadow:"0 20px 50px rgba(0,0,0,0.2)"}}>
-            <div style={{fontSize:18,fontWeight:600,marginBottom:6}}>Potvrdit rezervaci</div>
-            <p style={{fontSize:14,color:"#475569",marginBottom:12}}>Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude dárek uzamčen.</p>
-            <input type="email" placeholder="vas@email.cz" value={email} onChange={(e)=>setEmail(e.target.value)}
-              style={{width:"100%",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px",marginBottom:12}}/>
-            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-              <button onClick={()=>setReserveModal({open:false,giftId:""})} style={{borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}}>Zrušit</button>
-              <button onClick={handleReserve} style={{borderRadius:12,background:"#0f172a",color:"#fff",padding:"8px 12px"}}>Poslat potvrzení</button>
+        <div className="modal" onClick={(e)=>{ if(e.target===e.currentTarget) setReserveModal({open:false,giftId:""}); }}>
+          <div className="modal-card">
+            <h3>Potvrdit rezervaci</h3>
+            <p style={{color:"var(--muted)"}}>Zadejte prosím svůj e-mail. Pošleme potvrzovací odkaz; po jeho otevření bude dárek uzamčen.</p>
+            <input className="input" type="email" placeholder="vas@email.cz" value={email} onChange={(e)=>setEmail(e.target.value)} />
+            <div className="row" style={{justifyContent:"flex-end",marginTop:10}}>
+              <button className="btn secondary" onClick={()=>setReserveModal({open:false,giftId:""})}>Zrušit</button>
+              <button className="btn" onClick={handleReserve}>Poslat potvrzení</button>
             </div>
           </div>
         </div>
       )}
 
-      <footer style={{maxWidth:960,margin:"0 auto",padding:"40px 16px",textAlign:"center",fontSize:12,color:"#94a3b8"}}>
-        {new Date().getFullYear()} • Nikoskův wishlist • React • potvrzení e‑mailem
+      <footer className="footer">
+        {new Date().getFullYear()} • Nikoskův wishlist • pěkný UI ✨
       </footer>
-    </div>
+    </>
   );
 }
 
@@ -258,35 +212,34 @@ function GiftCard({ gift, admin, onReserve, onUnreserve, onDelete, onEdit }){
   const confirmed = status === "confirmed";
   const pending = status === "pending";
   return (
-    <div style={{borderRadius:16,border:"1px solid #e2e8f0",overflow:"hidden",background:"#fff",display:"flex",flexDirection:"column",opacity: confirmed ? 0.6 : 1}}>
-      {gift.image && <div style={{aspectRatio:"16/9",background:"#f1f5f9",overflow:"hidden"}}><img src={gift.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>}
-      <div style={{padding:16,display:"flex",flexDirection:"column",flex:1}}>
-        <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-          <h3 style={{fontSize:18,fontWeight:600,flex:1}}>{gift.title}</h3>
-          {confirmed && <span style={{fontSize:12,borderRadius:999,background:"#0f172a",color:"#fff",padding:"4px 8px"}}>Zarezervováno</span>}
-          {pending && <span style={{fontSize:12,borderRadius:999,background:"#b45309",color:"#fff",padding:"4px 8px"}}>Čeká na potvrzení</span>}
+    <div className="card" style={{opacity: confirmed ? .65 : 1}}>
+      {gift.image && <div className="media"><img src={gift.image} alt="" /></div>}
+      <div className="body">
+        <div className="row" style={{alignItems:"flex-start"}}>
+          <h3 style={{margin:"0 0 2px 0"}}>{gift.title}</h3>
+          {confirmed && <span className="badge ok">Zarezervováno</span>}
+          {pending && <span className="badge pending">Čeká na potvrzení</span>}
         </div>
-        {typeof gift.priceCZK === "number" && <div style={{marginTop:4,color:"#475569"}}>{currency(gift.priceCZK)}</div>}
-        {gift.note && <p style={{marginTop:8,fontSize:14,color:"#475569"}}>{gift.note}</p>}
-        <div style={{marginTop:"auto",display:"flex",alignItems:"center",gap:8,paddingTop:12}}>
-          {gift.link && <a href={gift.link} target="_blank" style={{borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px",fontSize:14}}>Otevřít odkaz</a>}
+        {typeof gift.priceCZK === "number" && <div className="price">{currency(gift.priceCZK)}</div>}
+        {gift.note && <div className="note">{gift.note}</div>}
+        <div className="row hr">
+          {gift.link && <a className="btn ghost" href={gift.link} target="_blank">Otevřít odkaz</a>}
           {!confirmed ? (
-            <button onClick={onReserve} disabled={pending}
-              style={{marginLeft:"auto",borderRadius:12,padding:"8px 12px",color:"#fff",background: pending ? "#cbd5e1" : "#059669",cursor: pending ? "not-allowed" : "pointer"}}>
+            <button className={"btn ok"} onClick={onReserve} disabled={pending} style={{marginLeft:"auto",opacity: pending? .6:1,cursor: pending? "not-allowed":"pointer"}}>
               {pending ? "Odeslán e-mail…" : "Zarezervovat"}
             </button>
           ) : (
-            <div style={{marginLeft:"auto",fontSize:12,color:"#64748b"}}>
+            <div style={{marginLeft:"auto",fontSize:12,color:"var(--muted)"}}>
               {gift.reservation?.email && <>pro {maskEmail(gift.reservation.email)}</>}
             </div>
           )}
         </div>
 
         {admin && (
-          <div style={{marginTop:12,display:"flex",gap:8,borderTop:"1px solid #e2e8f0",paddingTop:12}}>
-            {(pending || confirmed) && <button onClick={onUnreserve} style={{borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px",fontSize:14}}>Zrušit rezervaci</button>}
+          <div className="row hr">
+            {(pending || confirmed) && <button className="btn ghost" onClick={onUnreserve}>Zrušit rezervaci</button>}
             <GiftEditor initial={gift} onSubmit={onEdit} small />
-            <button onClick={onDelete} style={{marginLeft:"auto",borderRadius:12,border:"1px solid #fecaca",background:"#fee2e2",color:"#991b1b",padding:"8px 12px",fontSize:14}}>Smazat</button>
+            <button className="btn danger" onClick={onDelete} style={{marginLeft:"auto"}}>Smazat</button>
           </div>
         )}
       </div>
@@ -298,34 +251,35 @@ function GiftEditor({ initial, onSubmit, small }){
   const [form,setForm]=useState(initial || { id:"", title:"", link:"", image:"", priceCZK:"", note:"" });
   const [open,setOpen]=useState(false);
   useEffect(()=>{ setForm(initial || { id:"", title:"", link:"", image:"", priceCZK:"", note:"" }); },[initial]);
-  const Trigger=(<button onClick={()=>setOpen(true)} style={{borderRadius:12,border:"1px solid #cbd5e1",padding: small?"8px 12px":"10px 14px",fontSize: small?14:16}}>{initial?"Upravit":"Přidat dárek"}</button>);
   async function save(){
     if(!form.id || !form.title){ alert("Vyplňte minimálně ID a Název"); return; }
     const gift = { ...form, priceCZK: form.priceCZK==="" ? undefined : Number(form.priceCZK) };
-    try{ await onSubmit(gift); setOpen(false); }catch(e){ alert(`Uložení selhalo: ${e?.message || e}`); }
+    await onSubmit(gift); setOpen(false);
   }
-  return (<>
-    {Trigger}
-    {open && (
-      <div style={{position:"fixed",inset:0,zIndex:30,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.3)",padding:16}}>
-        <div style={{width:"100%",maxWidth:640,borderRadius:16,background:"#fff",padding:20,boxShadow:"0 20px 50px rgba(0,0,0,0.2)"}}>
-          <div style={{fontSize:18,fontWeight:600,marginBottom:6}}>{initial ? "Upravit dárek" : "Přidat nový dárek"}</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:12}}>
-            <Field label="ID (unikátní, bez mezer)"><input value={form.id} onChange={(e)=>setForm({...form,id:e.target.value})} style={{width:"100%",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}} placeholder="např. duplo-zviratka"/></Field>
-            <Field label="Název"><input value={form.title} onChange={(e)=>setForm({...form,title:e.target.value})} style={{width:"100%",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}} placeholder="Název dárku"/></Field>
-            <Field label="Odkaz na produkt (URL)"><input value={form.link} onChange={(e)=>setForm({...form,link:e.target.value})} style={{width:"100%",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}} placeholder="https://…"/></Field>
-            <Field label="Obrázek (URL)"><input value={form.image} onChange={(e)=>setForm({...form,image:e.target.value})} style={{width:"100%",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}} placeholder="https://…"/></Field>
-            <Field label="Orientační cena (Kč)"><input type="number" value={form.priceCZK} onChange={(e)=>setForm({...form,priceCZK:e.target.value})} style={{width:"100%",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}} placeholder="např. 999"/></Field>
-            <Field label="Poznámka"><input value={form.note} onChange={(e)=>setForm({...form,note:e.target.value})} style={{width:"100%",borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}} placeholder="Velikost, barva, tipy…"/></Field>
-          </div>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}>
-            <button onClick={()=>setOpen(false)} style={{borderRadius:12,border:"1px solid #cbd5e1",padding:"8px 12px"}}>Zavřít</button>
-            <button onClick={save} style={{borderRadius:12,background:"#0f172a",color:"#fff",padding:"8px 12px"}}>Uložit</button>
+  return (
+    <>
+      <button className={`btn ${small?"ghost":"secondary"}`} onClick={()=>setOpen(true)}>{initial?"Upravit":"Přidat dárek"}</button>
+      {open && (
+        <div className="modal" onClick={(e)=>{ if(e.target===e.currentTarget) setOpen(false); }}>
+          <div className="modal-card" style={{maxWidth:700}}>
+            <h3>{initial ? "Upravit dárek" : "Přidat nový dárek"}</h3>
+            <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))"}}>
+              <Field label="ID (unikátní, bez mezer)"><input className="input" value={form.id} onChange={(e)=>setForm({...form,id:e.target.value})} placeholder="např. duplo-zviratka"/></Field>
+              <Field label="Název"><input className="input" value={form.title} onChange={(e)=>setForm({...form,title:e.target.value})} placeholder="Název dárku"/></Field>
+              <Field label="Odkaz na produkt (URL)"><input className="input" value={form.link} onChange={(e)=>setForm({...form,link:e.target.value})} placeholder="https://…"/></Field>
+              <Field label="Obrázek (URL)"><input className="input" value={form.image} onChange={(e)=>setForm({...form,image:e.target.value})} placeholder="https://…"/></Field>
+              <Field label="Orientační cena (Kč)"><input className="input" type="number" value={form.priceCZK} onChange={(e)=>setForm({...form,priceCZK:e.target.value})} placeholder="např. 999"/></Field>
+              <Field label="Poznámka"><input className="input" value={form.note} onChange={(e)=>setForm({...form,note:e.target.value})} placeholder="Velikost, barva, tipy…"/></Field>
+            </div>
+            <div className="row" style={{justifyContent:"flex-end",marginTop:12}}>
+              <button className="btn secondary" onClick={()=>setOpen(false)}>Zavřít</button>
+              <button className="btn" onClick={save}>Uložit</button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-  </>);
+      )}
+    </>
+  );
 }
 
-function Field({ label, children }){ return (<label style={{display:"block",fontSize:14}}><div style={{color:"#475569",marginBottom:6}}>{label}</div>{children}</label>); }
+function Field({ label, children }){ return (<label style={{display:"block",fontSize:14}}><div style={{color:"var(--muted)",marginBottom:6}}>{label}</div>{children}</label>); }
