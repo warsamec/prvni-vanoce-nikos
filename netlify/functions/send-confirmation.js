@@ -19,13 +19,10 @@ export async function handler(event) {
     const html = `
       <div style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; padding: 28px;">
         <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.08);">
-          <div style="background: linear-gradient(90deg, #7c3aed, #22d3ee); color: white; padding: 20px 24px; font-size: 20px; font-weight: 600;">
-            🎄 Nikoskův vánoční dárek
-          </div>
 
           <div style="padding: 24px 28px; color: #1e293b; line-height: 1.6;">
-            <p>Milý dárce,</p>
-            <p>maminka a tatínek Nikoska vám <strong>ze srdce děkují 💙</strong>, že chcete našeho malého obdarovat.</p>
+            <p>Naši milí,</p>
+            <p>maminka a tatínek vám <strong>ze srdce děkují 💙</strong>, že chcete malého Nikoska obdarovat.</p>
 
             <p>Vybrali jste dárek: <strong>${giftTitle}</strong>.</p>
 
