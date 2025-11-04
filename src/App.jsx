@@ -333,7 +333,7 @@ export default function App() {
     <>
       <header className="header">
         <div className="container header-bar">
-          <div className="header-title">🎁 Seznam dárků pro Nikoska</div>
+          <div className="header-title">🎁 Seznam vánočních dárků pro Nikoska 🎄</div>
           <span className="pill">
             {SITE_HAS_SUPABASE
               ? "Online sdílená verze (Supabase připojeno)"
