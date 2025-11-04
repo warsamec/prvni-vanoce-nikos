@@ -318,7 +318,7 @@ export default function App() {
       const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
 
       // Nezavíráme modal — informujeme přímo uvnitř
-      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem.");
+      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem.");
 
       try {
         const origin = location.origin + location.pathname;
@@ -335,11 +335,11 @@ export default function App() {
         });
         if (!r.ok) throw new Error(await r.text());
         setReserveNotice(
-          "Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. E-mail byl odeslán."
+          "Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem. E-mail byl odeslán."
         );
       } catch {
         setReserveNotice(
-          "Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat."
+          "Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat."
         );
       }
     } catch (e) {
