@@ -86,10 +86,11 @@ body{
 .badge.pending{background:#3b2a11;color:#fde68a;border:1px solid rgba(253,230,138,.35)}
 
 /* Admin panel popover */
-.pop{position:relative}
+.pop{ position:relative }
 .pop-panel{
-  position:absolute;right:0;margin-top:10px;width:280px;padding:12px;border-radius:14px;
-  background:#0c1324;border:1px solid rgba(148,163,184,.2);box-shadow:var(--shadow)
+  position:absolute; right:0; margin-top:10px; width:280px; padding:12px;
+  border-radius:14px; background:#0c1324; border:1px solid rgba(148,163,184,.2);
+  box-shadow:var(--shadow); z-index:50;  /* ← přidáno */
 }
 
 /* Modal */
