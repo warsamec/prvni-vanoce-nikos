@@ -78,18 +78,21 @@ function useDataStore() {
 
   async function saveGifts(gifts) {
     if (useSupabase) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
-        method: "POST",
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "resolution=merge-duplicates,return=representation",
-        },
-        body: JSON.stringify(gifts),
-      });
-      if (!res.ok) throw new Error("Supabase saveGifts selhal");
-      return await res.json();
+     const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?on_conflict=id`, {
+  method: "POST",
+  headers: {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    "Content-Type": "application/json",
+    Prefer: "resolution=merge-duplicates,return=representation"
+  },
+  body: JSON.stringify(gifts)
+});
+if (!res.ok) {
+  const txt = await res.text().catch(() => "");
+  throw new Error(`Supabase saveGifts selhal: ${txt}`);
+}
+return await res.json();
     }
     localStorage.setItem("nikos-gifts", JSON.stringify(gifts));
     return gifts;
