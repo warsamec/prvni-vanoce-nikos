@@ -333,7 +333,7 @@ export default function App() {
     <>
 <header className="header">
   <div className="container header-bar header-compact">
-    <h1 className="header-title">🎁 Seznam vánočních dárků pro Nikoska 🎄</h1>
+    <h1 className="header-title">🎁 Vánoční dárky pro Nikoska 🎄</h1>
   </div>
 </header>
       <main className="container">
