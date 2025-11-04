@@ -1,12 +1,15 @@
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
+// Netlify Function (Node 18+) – bez SDK, volá Resend REST API přes fetch
+
+export async function handler(event) {
+  if (event.httpMethod !== "POST") {
+    return json(405, { ok: false, error: "Method not allowed" });
   }
 
   try {
-    const { to, giftTitle, giftLink, token, origin } = req.body || {};
+    const body = JSON.parse(event.body || "{}");
+    const { to, giftTitle, giftLink, token, origin } = body;
     if (!to || !giftTitle || !token || !origin) {
-      return res.status(400).json({ ok: false, error: "Missing fields" });
+      return json(400, { ok: false, error: "Missing fields" });
     }
 
     const siteUrl = process.env.SITE_URL || origin;
@@ -40,12 +43,19 @@ export default async function handler(req, res) {
 
     if (!resp.ok) {
       const err = await resp.text().catch(() => "");
-      return res.status(500).json({ ok: false, error: `Resend API error: ${err}` });
+      return json(500, { ok: false, error: `Resend API error: ${err}` });
     }
 
-    return res.status(200).json({ ok: true });
+    return json(200, { ok: true });
   } catch (e) {
-    console.error("Email error:", e);
-    return res.status(500).json({ ok: false, error: String(e) });
+    return json(500, { ok: false, error: String(e) });
   }
+}
+
+function json(statusCode, obj) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(obj),
+  };
 }
