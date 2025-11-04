@@ -1,0 +1,106 @@
+/* src/styles.css — jednoduchý „design system“ bez knihoven */
+:root{
+  --bg: #0b1220;
+  --bg-soft:#0f172a;        /* pozadí headeru */
+  --card:#0b1220;           /* kartu přebarvíme při hoveru */
+  --muted:#94a3b8;
+  --text:#e2e8f0;
+  --ink:#0f172a;
+  --brand:#7c3aed;          /* fialová */
+  --brand-2:#22d3ee;        /* tyrkys */
+  --ok:#10b981;
+  --warn:#b45309;
+  --danger:#ef4444;
+  --ring: 0 0 0 3px rgba(124,58,237,.25);
+  --radius:16px;
+  --shadow: 0 10px 30px rgba(2,8,23,.25);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(1200px 600px at 10% -20%, rgba(124,58,237,.25), transparent 60%),
+    radial-gradient(1000px 500px at 120% 10%, rgba(34,211,238,.25), transparent 50%),
+    linear-gradient(180deg,#0a0f1e,#0b1220 20%, #0b1220 100%);
+}
+
+/* Layout */
+.container{max-width:1040px;margin:0 auto;padding:24px 16px}
+.header{
+  position:sticky;top:0;z-index:10;
+  backdrop-filter:saturate(140%) blur(12px);
+  background:linear-gradient(180deg, rgba(15,23,42,.85), rgba(15,23,42,.55));
+  border-bottom:1px solid rgba(148,163,184,.15);
+}
+.header-bar{display:flex;align-items:center;gap:12px;padding:16px}
+.header-title{font-size:22px;font-weight:800;letter-spacing:.2px;display:flex;gap:8px;align-items:center}
+.pill{font-size:12px;color:var(--muted);margin-left:auto;padding:6px 10px;border:1px solid rgba(148,163,184,.25);border-radius:999px;background:rgba(15,23,42,.35)}
+.btn{
+  border:none;background:var(--brand);
+  color:white;padding:10px 14px;border-radius:999px;cursor:pointer;
+  transition:.2s transform ease, .2s opacity ease, .2s background ease;
+  box-shadow: 0 8px 18px rgba(124,58,237,.35);
+}
+.btn:hover{transform:translateY(-1px)}
+.btn.secondary{
+  background:transparent;color:var(--text);
+  border:1px solid rgba(148,163,184,.25);box-shadow:none
+}
+.btn.ghost{background:transparent;border:1px solid rgba(148,163,184,.25);color:var(--text)}
+.btn.ok{background:var(--ok);box-shadow:0 8px 18px rgba(16,185,129,.25)}
+.btn.warn{background:var(--warn)}
+.btn.danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;box-shadow:none}
+.icon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center}
+
+/* Search + admin */
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.input{
+  flex:1 1 280px;background:#0e1628;color:var(--text);
+  border:1px solid rgba(148,163,184,.25);border-radius:12px;padding:10px 12px;outline:none;
+}
+.input:focus{box-shadow:var(--ring);border-color:rgba(124,58,237,.45)}
+
+/* Grid */
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+
+/* Card */
+.card{
+  background:linear-gradient(180deg,#0d1629,#0b1220);
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:var(--radius);overflow:hidden;
+  box-shadow:var(--shadow);
+  display:flex;flex-direction:column;transition:.25s transform ease,.25s box-shadow ease;
+}
+.card:hover{transform:translateY(-2px);box-shadow:0 18px 44px rgba(2,8,23,.6)}
+.card .media{aspect-ratio:16/9;background:#0e1628;overflow:hidden}
+.card .media img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.1)}
+.card .body{padding:16px;display:flex;flex-direction:column;gap:8px;flex:1}
+.price{color:#cbd5e1}
+.note{color:var(--muted);font-size:14px}
+.badge{font-size:11px;border-radius:999px;padding:4px 10px;margin-left:8px}
+.badge.ok{background:#0f172a;color:#c7d2fe;border:1px solid rgba(148,163,184,.25)}
+.badge.pending{background:#3b2a11;color:#fde68a;border:1px solid rgba(253,230,138,.35)}
+
+/* Admin panel popover */
+.pop{position:relative}
+.pop-panel{
+  position:absolute;right:0;margin-top:10px;width:280px;padding:12px;border-radius:14px;
+  background:#0c1324;border:1px solid rgba(148,163,184,.2);box-shadow:var(--shadow)
+}
+
+/* Modal */
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:radial-gradient(800px 400px at 20% 20%, rgba(124,58,237,.15), transparent 50%),
+             rgba(2,8,23,.55);backdrop-filter: blur(4px);z-index:30}
+.modal-card{width:100%;max-width:460px;border-radius:18px;background:#0c1324;
+  border:1px solid rgba(148,163,184,.2);box-shadow:var(--shadow);padding:20px}
+.modal h3{margin:0 0 6px 0}
+.row{display:flex;gap:8px;align-items:center}
+.hr{border-top:1px solid rgba(148,163,184,.15);margin-top:12px;padding-top:12px}
+
+/* Footer */
+.footer{color:#94a3b8;text-align:center;padding:40px 16px}
