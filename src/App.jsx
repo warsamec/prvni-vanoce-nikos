@@ -8,9 +8,9 @@ import React, { useEffect, useMemo, useState } from "react";
  *   ukládá se do Supabase tabulky `gifts_registry` (viz supabase.sql).
  */
 
-const SUPABASE_URL = import.meta?.env?.VITE_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = import.meta?.env?.VITE_SUPABASE_ANON_KEY || "";
-const ADMIN_PIN = import.meta?.env?.VITE_ADMIN_PIN || "nikos2025";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const ADMIN_PIN = (import.meta.env && import.meta.env.VITE_ADMIN_PIN) || "nikos2025";
 
 const useSupabase = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 const TABLE = "gifts_registry";
