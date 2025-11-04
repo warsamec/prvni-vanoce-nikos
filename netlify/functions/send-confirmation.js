@@ -1,5 +1,3 @@
-// Netlify Function (Node 18+) – bez SDK, volá Resend REST API přes fetch
-
 export async function handler(event) {
   if (event.httpMethod !== "POST") {
     return json(405, { ok: false, error: "Method not allowed" });
@@ -19,12 +17,47 @@ export async function handler(event) {
       "Nikoskův seznam <potvrzeni@prvni-vanoce-nikos.varsamis.cz>";
 
     const html = `
-      <p>Ahoj,</p>
-      <p>Potvrď prosím rezervaci dárku <b>${giftTitle}</b> pro Nikoska.</p>
-      ${giftLink ? `<p>🔗 <a href="${giftLink}" target="_blank">Otevřít odkaz na e-shop</a></p>` : ""}
-      <p>👉 <a href="${confirmLink}" target="_blank">Dokončit rezervaci</a></p>
-      <p>Děkujeme! 💙</p>
-      <p><small>Tento e-mail byl odeslán automaticky z Nikoskova seznamu přání.</small></p>
+      <div style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; padding: 28px;">
+        <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.08);">
+          <div style="background: linear-gradient(90deg, #7c3aed, #22d3ee); color: white; padding: 20px 24px; font-size: 20px; font-weight: 600;">
+            🎄 Nikoskův vánoční dárek
+          </div>
+
+          <div style="padding: 24px 28px; color: #1e293b; line-height: 1.6;">
+            <p>Milý dárce,</p>
+            <p>maminka a tatínek Nikoska vám <strong>ze srdce děkují 💙</strong>, že chcete našeho malého obdarovat.</p>
+
+            <p>Vybrali jste dárek: <strong>${giftTitle}</strong>.</p>
+
+            <p style="margin-top: 22px; font-weight: 600; color: #0f172a; font-size: 17px; text-align: center;">
+              👉 Potvrďte prosím svůj dárek kliknutím sem:
+            </p>
+
+            <p style="text-align: center; margin-top: 10px; margin-bottom: 26px;">
+              <a href="${confirmLink}" target="_blank"
+                 style="background: #7c3aed; color: white; text-decoration: none; padding: 12px 24px; border-radius: 999px; display: inline-block; font-weight: 600;">
+                 Potvrdit rezervaci 🎁
+              </a>
+            </p>
+
+            ${
+              giftLink
+                ? `<p style="text-align:center;margin-bottom:0;">
+                    <a href="${giftLink}" target="_blank"
+                       style="color:#2563eb;text-decoration:none;font-size:15px;">
+                       🔗 Otevřít odkaz na e-shop
+                    </a>
+                   </p>`
+                : ""
+            }
+
+            <p style="margin-top: 30px; font-size: 13px; color: #64748b;">
+              Tento e-mail byl odeslán automaticky z Nikoskova vánočního seznamu přání 🎅<br>
+              Po potvrzení odkazu bude dárek označen jako rezervovaný, aby se neopakoval.
+            </p>
+          </div>
+        </div>
+      </div>
     `;
 
     const resp = await fetch("https://api.resend.com/emails", {
@@ -36,7 +69,7 @@ export async function handler(event) {
       body: JSON.stringify({
         from: sender,
         to,
-        subject: "Potvrďte rezervaci dárku pro Nikoska 🎁",
+        subject: "Nikoskův vánoční dárek 🎄",
         html,
       }),
     });
