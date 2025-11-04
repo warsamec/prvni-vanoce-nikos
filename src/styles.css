@@ -114,3 +114,24 @@ body{
   .header-compact { padding: 16px; }
   .header-title { font-size: 22px; }
 }
+
+/* Plynulé přibližování obrázku karty na hover (jen tam, kde myš existuje) */
+@media (hover: hover) and (pointer: fine) {
+  .card .media {
+    overflow: hidden;           /* ořez okrajů při zoomu */
+  }
+  .card .media img {
+    transition: transform .35s ease;  /* plynulé */
+    transform-origin: center center;
+  }
+  .card:hover .media img {
+    transform: scale(1.06);     /* jemný zoom */
+  }
+}
+
+/* Respektuj preferenci minimalizace animací */
+@media (prefers-reduced-motion: reduce) {
+  .card .media img {
+    transition: none;
+  }
+}
