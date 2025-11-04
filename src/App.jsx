@@ -52,16 +52,6 @@ const maskEmail = (email = "") => {
 };
 const genToken = () => crypto.getRandomValues(new Uint32Array(4)).join("");
 
-// Náhodné promíchání pole (Fisher–Yates)
-const shuffle = (arr) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
-
 /* Datastore (Supabase / LocalStorage) */
 function useDataStore() {
   async function listGifts() {
@@ -232,8 +222,17 @@ export default function App() {
   const [reserveModal, setReserveModal] = useState({ open: false, giftId: "" });
   const [email, setEmail] = useState("");
   const [info, setInfo] = useState("");
-  const [reserveNotice, setReserveNotice] = useState(""); // text přímo v modalu
-  const [reserveSending, setReserveSending] = useState(false); // disable během odeslání
+  const [reserveNotice, setReserveNotice] = useState("");
+  const [reserveSending, setReserveSending] = useState(false);
+
+  // Stabilní pořadí per zařízení
+  const [orderMap, setOrderMap] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("nikos-order") || "{}");
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     (async () => {
@@ -243,6 +242,7 @@ export default function App() {
     })();
   }, []);
 
+  // Po potvrzovacím odkazu
   useEffect(() => {
     (async () => {
       const h = location.hash;
@@ -262,6 +262,24 @@ export default function App() {
     })();
   }, []);
 
+  // Doplň chybějící klíče do orderMap a persistuj
+  useEffect(() => {
+    if (!items.length) return;
+    const next = { ...orderMap };
+    let changed = false;
+    for (const g of items) {
+      if (next[g.id] == null) {
+        next[g.id] = crypto.getRandomValues(new Uint32Array(1))[0];
+        changed = true;
+      }
+    }
+    if (changed) {
+      setOrderMap(next);
+      localStorage.setItem("nikos-order", JSON.stringify(next));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const base = !q
@@ -271,8 +289,13 @@ export default function App() {
             .filter(Boolean)
             .some((v) => v.toLowerCase().includes(q))
         );
-    return shuffle(base);
-  }, [items, query]);
+    // stabilní řazení podle uloženého klíče
+    return [...base].sort((a, b) => {
+      const ka = orderMap[a.id] ?? 0;
+      const kb = orderMap[b.id] ?? 0;
+      return ka - kb;
+    });
+  }, [items, query, orderMap]);
 
   async function handleReserve() {
     const em = email.trim();
@@ -288,8 +311,8 @@ export default function App() {
       const token = genToken();
       const gift = await store.createPendingReservation(reserveModal.giftId, em, token);
 
-      // Zobrazíme informaci přímo v modalu (nezavíráme ho hned)
-      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem.");
+      // Nezavíráme modal — informujeme přímo uvnitř
+      setReserveNotice("Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem.");
 
       try {
         const origin = location.origin + location.pathname;
@@ -306,19 +329,18 @@ export default function App() {
         });
         if (!r.ok) throw new Error(await r.text());
         setReserveNotice(
-          "Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. E-mail byl odeslán."
+          "Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem. E-mail byl odeslán."
         );
       } catch {
         setReserveNotice(
-          "Rezervace vytvořena. Zkontrolujte e-mail a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat."
+          "Rezervace vytvořena. Zkontrolujte e-mail (i složku SPAM!) a potvrďte odkazem. ⚠️ E-mail se nepodařilo odeslat."
         );
       }
     } catch (e) {
       setReserveNotice(e.message || "Rezervace selhala");
     } finally {
       setReserveSending(false);
-      // po potvrzení stavu obnovíme list, aby se karta přepnula do „pending“
-      setItems(await store.listGifts());
+      setItems(await store.listGifts()); // přepne kartu do "pending", ale pořadí zůstává
     }
   }
 
@@ -421,7 +443,7 @@ export default function App() {
                   style={{
                     border: "1px solid rgba(255,255,255,.2)",
                     background: "rgba(2,6,23,.6)",
-                    color: "#fff)",
+                    color: "#fff",
                   }}
                 />
                 <button
@@ -452,7 +474,7 @@ export default function App() {
             onChange={(e) => setQuery(e.target.value)}
           />
 
-          {admin && (
+        {admin && (
             <div className="row" style={{ marginLeft: "auto" }}>
               <button className="btn ghost" onClick={() => setAdmin(false)}>
                 Odhlásit admin
@@ -470,7 +492,7 @@ export default function App() {
               marginBottom: 12,
               background: "rgba(124,58,237,.15)",
               borderColor: "rgba(124,58,237,.35)",
-              color: "#e9d5ff)",
+              color: "#e9d5ff",
             }}
           >
             {info}
