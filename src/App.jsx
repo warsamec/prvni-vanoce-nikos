@@ -331,23 +331,11 @@ export default function App() {
 
   return (
     <>
-      <header className="header">
-        <div className="container header-bar">
-          <div className="header-title">🎁 Seznam vánočních dárků pro Nikoska 🎄</div>
-          <span className="pill">
-            {SITE_HAS_SUPABASE
-              ? "Online sdílená verze (Supabase připojeno)"
-              : "Lokální verze (nastavte Supabase)"}
-          </span>
-          <button
-            className="btn"
-            onClick={() => navigator.clipboard.writeText(location.href)}
-          >
-            Sdílet odkaz
-          </button>
-        </div>
-      </header>
-
+<header className="header">
+  <div className="container header-bar header-compact">
+    <h1 className="header-title">🎁 Seznam vánočních dárků pro Nikoska 🎄</h1>
+  </div>
+</header>
       <main className="container">
         <div className="toolbar">
           <input
@@ -503,9 +491,14 @@ export default function App() {
         </ModalPortal>
       )}
 
-      <footer className="footer">
-        {new Date().getFullYear()} • Nikoskův wishlist • pěkný UI ✨
-      </footer>
+<footer className="footer">
+  <div style={{fontSize:12, opacity:.8, marginBottom:8}}>
+    {SITE_HAS_SUPABASE
+      ? "Online sdílená verze (Supabase připojeno)"
+      : "Lokální verze (nastavte Supabase)"}
+  </div>
+  {new Date().getFullYear()} • Nikoskův vánoční seznam
+</footer>
     </>
   );
 }
