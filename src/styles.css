@@ -135,3 +135,45 @@ body{
     transition: none;
   }
 }
+
+/* --- Admin tlačítko v pravém horním rohu --- */
+.admin-button-wrapper {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 60;
+}
+
+.admin-button {
+  background: rgba(30,41,59,.8);
+  border: 1px solid rgba(148,163,184,.3);
+  color: #94a3b8;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .3s ease;
+}
+.admin-button:hover {
+  background: rgba(51,65,85,.9);
+  color: white;
+}
+.admin-active {
+  background: rgba(220,38,38,.8);
+  color: white;
+}
+
+.admin-popup {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  background: #0f172a;
+  border: 1px solid rgba(148,163,184,.2);
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  width: 200px;
+}
