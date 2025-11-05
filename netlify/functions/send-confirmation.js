@@ -1,91 +1,139 @@
-export async function handler(event) {
-  if (event.httpMethod !== "POST") {
-    return json(405, { ok: false, error: "Method not allowed" });
-  }
+// netlify/functions/send-confirmation.js
 
+// Tento handler přijímá JSON:
+// { to: string, giftTitle: string, giftLink?: string, token: string, origin: string }
+
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_FROM = process.env.RESEND_FROM || "Seznam vánočních dárků <potvrzeni@prvni-vanoce-nikos.varsamis.cz>";
+const RESEND_REPLY_TO = process.env.RESEND_REPLY_TO || "";
+
+exports.handler = async (event) => {
   try {
-    const body = JSON.parse(event.body || "{}");
-    const { to, giftTitle, giftLink, token, origin } = body;
-    if (!to || !giftTitle || !token || !origin) {
-      return json(400, { ok: false, error: "Missing fields" });
+    if (event.httpMethod !== "POST") {
+      return json(405, { error: "Method Not Allowed" });
     }
 
-    const siteUrl = process.env.SITE_URL || origin;
-    const confirmLink = `${siteUrl}#confirm=${encodeURIComponent(token)}`;
-    const sender =
-      process.env.SENDER_EMAIL ||
-      "Nikoskův seznam <potvrzeni@prvni-vanoce-nikos.varsamis.cz>";
+    if (!RESEND_API_KEY) {
+      return json(500, { error: "Missing RESEND_API_KEY" });
+    }
+
+    const { to, giftTitle, giftLink = "", token, origin } = safeParse(event.body);
+
+    if (!to || !giftTitle || !token || !origin) {
+      return json(400, { error: "Missing required fields (to, giftTitle, token, origin)" });
+    }
+
+    const subject = "Nikoskův vánoční dárek 🎄 – potvrďte rezervaci";
+    const confirmUrl = `${stripHash(origin)}#confirm=${encodeURIComponent(token)}`;
+
+    const text = [
+      "Tatínek a maminka moc děkují, že chcete Nikoska obdarovat.",
+      "",
+      `Dárek: ${giftTitle}`,
+      "",
+      "👉 Pro dokončení rezervace prosím klikněte na tento odkaz:",
+      confirmUrl,
+      "",
+      giftLink ? `Odkaz na vybraný produkt: ${giftLink}` : "",
+      "",
+      "Pokud jste rezervaci nezadali vy, můžete tento e-mail ignorovat.",
+      "",
+      "Seznam vánočních dárků • prvni-vanoce-nikos.varsamis.cz",
+    ].join("\n");
 
     const html = `
-      <div style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; padding: 28px;">
-        <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.08);">
-
-          <div style="padding: 24px 28px; color: #1e293b; line-height: 1.6;">
-            <p>Naši milí,</p>
-            <p>maminka a tatínek vám <strong>ze srdce děkují 💙</strong>, že chcete malého Nikoska obdarovat.</p>
-
-            <p>Vybrali jste dárek: <strong>${giftTitle}</strong>.</p>
-
-            <p style="margin-top: 22px; font-weight: 600; color: #0f172a; font-size: 17px; text-align: center;">
-              👉 Potvrďte prosím svůj dárek kliknutím sem:
-            </p>
-
-            <p style="text-align: center; margin-top: 10px; margin-bottom: 26px;">
-              <a href="${confirmLink}" target="_blank"
-                 style="background: #7c3aed; color: white; text-decoration: none; padding: 12px 24px; border-radius: 999px; display: inline-block; font-weight: 600;">
-                 Potvrdit rezervaci 🎁
-              </a>
-            </p>
-
-            ${
-              giftLink
-                ? `<p style="text-align:center;margin-bottom:0;">
-                    <a href="${giftLink}" target="_blank"
-                       style="color:#2563eb;text-decoration:none;font-size:15px;">
-                       🔗 Otevřít odkaz na e-shop
-                    </a>
-                   </p>`
-                : ""
-            }
-
-            <p style="margin-top: 30px; font-size: 13px; color: #64748b;">
-              Tento e-mail byl odeslán automaticky z Nikoskova vánočního seznamu přání 🎅<br>
-              Po potvrzení odkazu bude dárek označen jako rezervovaný, aby se neopakoval.
-            </p>
-          </div>
-        </div>
+      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.6;color:#0f172a">
+        <p>Tatínek a maminka moc děkují, že chcete Nikoska obdarovat.</p>
+        <p><strong>Dárek:</strong> ${escapeHtml(giftTitle)}</p>
+        <p style="margin:20px 0">
+          <a href="${confirmUrl}" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px">
+            Potvrdit rezervaci
+          </a>
+        </p>
+        ${giftLink ? `<p>Pro informaci: <a href="${escapeAttr(giftLink)}">odkaz na vybraný produkt</a></p>` : ""}
+        <p style="font-size:12px;color:#64748b;margin-top:24px">
+          Pokud jste rezervaci nezadali vy, tento e-mail ignorujte.
+        </p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0" />
+        <p style="font-size:12px;color:#64748b">Seznam vánočních dárků • prvni-vanoce-nikos.varsamis.cz</p>
       </div>
     `;
 
-    const resp = await fetch("https://api.resend.com/emails", {
+    const payload = {
+      from: RESEND_FROM,
+      to: [to],
+      subject,
+      html,
+      text,
+      ...(RESEND_REPLY_TO ? { reply_to: RESEND_REPLY_TO } : {}),
+      // Volitelně: headers pro některé filtry (není nutné)
+      // headers: { "List-Unsubscribe": `<${confirmUrl}>` },
+    };
+
+    const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from: sender,
-        to,
-        subject: "Nikoskův vánoční dárek 🎄",
-        html,
-      }),
+      body: JSON.stringify(payload),
     });
 
-    if (!resp.ok) {
-      const err = await resp.text().catch(() => "");
-      return json(500, { ok: false, error: `Resend API error: ${err}` });
+    if (!r.ok) {
+      const errTxt = await r.text().catch(() => "");
+      return json(r.status, { error: "Resend send failed", details: errTxt });
     }
 
-    return json(200, { ok: true });
+    const data = await r.json();
+    return json(200, { ok: true, id: data.id || null });
   } catch (e) {
-    return json(500, { ok: false, error: String(e) });
+    return json(500, { error: "Unhandled error", details: String(e && e.message || e) });
+  }
+};
+
+/* ---------- Helpers ---------- */
+
+function json(status, body) {
+  return {
+    statusCode: status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+    body: JSON.stringify(body),
+  };
+}
+
+function safeParse(s) {
+  try {
+    return JSON.parse(s || "{}");
+  } catch {
+    return {};
   }
 }
 
-function json(statusCode, obj) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(obj),
-  };
+function stripHash(url) {
+  try {
+    const u = new URL(url, "http://dummy");
+    // Pokud origin už obsahuje hash (neměl by), odstraníme jej:
+    return (u.origin === "null" ? "" : `${u.pathname}`) // fallback, když by přišel jen path
+      ? `${url.split("#")[0]}`
+      : url.split("#")[0];
+  } catch {
+    return String(url || "").split("#")[0];
+  }
+}
+
+function escapeHtml(s = "") {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeAttr(s = "") {
+  // Konzervativní escapování do HTML atributu href
+  return escapeHtml(s).replace(/"/g, "&quot;");
 }
