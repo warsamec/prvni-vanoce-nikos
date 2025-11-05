@@ -620,31 +620,53 @@ function GiftCard({ gift, admin, onReserve, onUnreserve, onDelete, onEdit }) {
           <div className="price">{currency(gift.priceCZK)}</div>
         )}
         {gift.note && <div className="note">{gift.note}</div>}
-        <div className="row hr">
-          {gift.link && (
-            <a className="btn ghost" href={gift.link} target="_blank">
-              Otevřít odkaz
-            </a>
-          )}
-          {!confirmed ? (
-            <button
-              className={"btn ok"}
-              onClick={onReserve}
-              disabled={pending}
-              style={{
-                marginLeft: "auto",
-                opacity: pending ? 0.6 : 1,
-                cursor: pending ? "not-allowed" : "pointer",
-              }}
-            >
-              {pending ? "Odeslán e-mail…" : "Zarezervovat"}
-            </button>
-          ) : (
-            <div style={{ marginLeft: "auto", fontSize: 12, color: "var(--muted)" }}>
-              {gift.reservation?.email && <>pro {maskEmail(gift.reservation.email)}</>}
-            </div>
-          )}
-        </div>
+<div className="row hr">
+  {!confirmed ? (
+    <>
+      <button
+        className={"btn ok"}
+        onClick={onReserve}
+        disabled={pending}
+        style={{
+          fontWeight: 600,
+          paddingInline: 18,
+          opacity: pending ? 0.9 : 1,
+          cursor: pending ? "not-allowed" : "pointer",
+        }}
+      >
+        {pending ? "Odeslán e-mail…" : "Zarezervovat"}
+      </button>
+
+      {gift.link && (
+        <a
+          className="btn ghost"
+          href={gift.link}
+          target="_blank"
+          style={{ marginLeft: "auto" }}
+        >
+          Náhled dárku
+        </a>
+      )}
+    </>
+  ) : (
+    <>
+      {gift.link && (
+        <a
+          className="btn ghost"
+          href={gift.link}
+          target="_blank"
+          style={{ marginLeft: "auto" }}
+        >
+          Náhled dárku
+        </a>
+      )}
+      <div style={{ marginLeft: "12px", fontSize: 12, color: "var(--muted)" }}>
+        {gift.reservation?.email && <>pro {maskEmail(gift.reservation.email)}</>}
+      </div>
+    </>
+  )}
+</div>
+
 
         {admin && (
           <div className="row hr">
