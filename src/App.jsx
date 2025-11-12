@@ -73,46 +73,61 @@ function useDataStore() {
     return JSON.parse(raw);
   }
 
-  async function upsertGift(gift) {
-    if (!SITE_HAS_SUPABASE) {
-      const gifts = await listGifts();
-      const i = gifts.findIndex((g) => g.id === gift.id);
-      if (i === -1) gifts.push(gift);
-      else gifts[i] = gift;
-      localStorage.setItem("nikos-gifts", JSON.stringify(gifts));
-      return gift;
-    }
-    const baseHeaders = {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    };
-    const check = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(
-        gift.id
-      )}&select=id`,
-      { headers: baseHeaders }
-    );
-    const rows = await check.json();
-    if (rows.length) {
-      const { id, ...rest } = gift;
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(id)}`,
-        { method: "PATCH", headers: baseHeaders, body: JSON.stringify(rest) }
-      );
-      if (!(res.ok || res.status === 204)) throw new Error(await res.text());
-      return gift;
-    } else {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
-        method: "POST",
-        headers: baseHeaders,
-        body: JSON.stringify([gift]),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return gift;
-    }
+async function upsertGift(gift) {
+  if (!SITE_HAS_SUPABASE) {
+    const gifts = await listGifts();
+    const i = gifts.findIndex((g) => g.id === gift.id);
+    if (i === -1) gifts.push(gift);
+    else gifts[i] = gift;
+    localStorage.setItem("nikos-gifts", JSON.stringify(gifts));
+    return gift;
   }
+
+  // ❗ Odfiltrujeme generated columns, které nejdou zapisovat
+  const {
+    reservation_status,
+    status_icon,
+    is_reserved,
+    reservation_email,
+    ...cleanGift
+  } = gift || {};
+
+  const baseHeaders = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation",
+  };
+
+  // Zjistíme, zda záznam existuje
+  const check = await fetch(
+    `${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(cleanGift.id)}&select=id`,
+    { headers: baseHeaders }
+  );
+  if (!check.ok) throw new Error(await check.text());
+  const rows = await check.json();
+
+  if (rows.length) {
+    // PATCH existujícího záznamu – POZOR: neposíláme generated columns
+    const { id, ...rest } = cleanGift;
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(id)}`,
+      { method: "PATCH", headers: baseHeaders, body: JSON.stringify(rest) }
+    );
+    if (!(res.ok || res.status === 204)) throw new Error(await res.text());
+    return gift;
+  } else {
+    // POST nového záznamu – opět bez generated columns
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+      method: "POST",
+      headers: baseHeaders,
+      body: JSON.stringify([cleanGift]),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return gift;
+  }
+}
+
 
   async function removeGift(id) {
     if (!SITE_HAS_SUPABASE) {
