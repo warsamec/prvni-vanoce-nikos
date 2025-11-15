@@ -47,7 +47,7 @@ body{
 }
 .btn:hover{
   transform:translateY(-1px);
-  box-shadow: 0 12px 26px rgba(124,58,237,.5);
+  box-shadow: 0 12px 26px rgba(124,58,237,.75);
 }
 .btn.secondary{
   background:transparent;color:var(--text);
