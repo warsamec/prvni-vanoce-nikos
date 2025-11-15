@@ -308,15 +308,34 @@ export default function App() {
             .filter(Boolean)
             .some((v) => v.toLowerCase().includes(q))
         );
-    // Pokud ještě není připraven orderMap (první milisekundy), vrať base.
-    if (!Object.keys(orderMap).length) return base;
-    // Stabilní řazení podle vygenerovaných klíčů (nemění se během návštěvy)
-    return [...base].sort((a, b) => {
+
+    // rozdělení na volné vs. rezervované (pending i confirmed bereme jako rezervované)
+    const isReserved = (g) =>
+      g.reservation &&
+      (g.reservation.status === "pending" || g.reservation.status === "confirmed");
+
+    const free = base.filter((g) => !isReserved(g));
+    const reserved = base.filter((g) => isReserved(g));
+
+    // Když ještě není připraven orderMap (úplně první moment), aspoň dáme volné nahoru
+    if (!Object.keys(orderMap).length) {
+      return [...free, ...reserved];
+    }
+
+    // Stabilní náhodné pořadí v rámci návštěvy:
+    // zvlášť pro volné a zvlášť pro rezervované, pak je slepíme
+    const byKey = (a, b) => {
       const ka = orderMap[a.id] ?? 0;
       const kb = orderMap[b.id] ?? 0;
       return ka - kb;
-    });
+    };
+
+    const sortedFree = [...free].sort(byKey);
+    const sortedReserved = [...reserved].sort(byKey);
+
+    return [...sortedFree, ...sortedReserved];
   }, [items, query, orderMap]);
+
 
   async function handleReserve() {
     const em = email.trim();
