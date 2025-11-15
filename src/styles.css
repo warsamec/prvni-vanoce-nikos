@@ -42,10 +42,13 @@ body{
 .btn{
   border:none;background:var(--brand);
   color:white;padding:10px 14px;border-radius:999px;cursor:pointer;
-  transition:.2s transform ease, .2s opacity ease, .2s background ease;
+  transition:.2s transform ease, .2s opacity ease, .2s background ease, .3s box-shadow ease;
   box-shadow: 0 8px 18px rgba(124,58,237,.35);
 }
-.btn:hover{transform:translateY(-1px)}
+.btn:hover{
+  transform:translateY(-1px);
+  box-shadow: 0 12px 26px rgba(124,58,237,.5);
+}
 .btn.secondary{
   background:transparent;color:var(--text);
   border:1px solid rgba(148,163,184,.25);box-shadow:none
