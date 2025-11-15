@@ -42,7 +42,7 @@ body{
 .btn{
   border:none;background:var(--brand);
   color:white;padding:10px 14px;border-radius:999px;cursor:pointer;
-  transition:.2s transform ease, .2s opacity ease, .2s background ease, .3s box-shadow ease;
+  transition:.2s transform ease, .2s opacity ease, .2s background ease, .8s box-shadow ease;
   box-shadow: 0 8px 18px rgba(124,58,237,.35);
 }
 .btn:hover{
