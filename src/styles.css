@@ -50,7 +50,7 @@ body{
   background:transparent;color:var(--text);
   border:1px solid rgba(148,163,184,.25);box-shadow:none
 }
-.btn.ghost{background:transparent;font-size: 0.6rem;border:1px solid rgba(148,163,184,.25);color:var(--text)}
+.btn.ghost{background:transparent;font-size: 0.9rem;border:1px solid rgba(148,163,184,.25);color:var(--text)}
 .btn.ok{background:var(--ok);font-size: 1rem;box-shadow:0 8px 18px rgba(16,185,129,.25)}
 .btn.warn{background:var(--warn)}
 .btn.danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;box-shadow:none}
