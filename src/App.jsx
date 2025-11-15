@@ -619,7 +619,7 @@ function GiftCard({ gift, admin, onReserve, onUnreserve, onDelete, onEdit }) {
   const confirmed = status === "confirmed";
   const pending = status === "pending";
   return (
-    <div className="card" style={{ opacity: confirmed ? 0.4 : 1 }}>
+    <div className="card" style={{ opacity: confirmed ? 0.2 : 1 }}>
       {gift.image && (
         <div className="media">
           <img src={gift.image} alt="" />
