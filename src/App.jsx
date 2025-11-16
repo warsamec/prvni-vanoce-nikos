@@ -431,7 +431,36 @@ export default function App() {
           <h1 className="header-title" style={{ color: "#fff" }}>
             🎁 Vánoční dárky pro Nikoska 🎄
           </h1>
+<div id="countdown-wrapper">
+  <div class="countdown">
+    <div class="countdown-label">⏳ Do štědrovečerní večeře zbývá:</div>
+    <div class="countdown-grid">
+      <div class="countdown-item">
+        <span id="cd-days">0</span>
+        <small>dnů</small>
+      </div>
+      <div class="countdown-item">
+        <span id="cd-hours">00</span>
+        <small>hodin</small>
+      </div>
+      <div class="countdown-item">
+        <span id="cd-minutes">00</span>
+        <small>minut</small>
+      </div>
+      <div class="countdown-item">
+        <span id="cd-seconds">00</span>
+        <small>sekund</small>
+      </div>
+    </div>
+  </div>
 
+  <div id="countdown-finished-msg" style="display:none;">
+    <h2 class="finished-text">
+      🎄 Je čas rozbalovat dárky! <br>
+      Nikosek má radost a děkuje 🎁✨
+    </h2>
+  </div>
+</div>
           <div className="admin-button-wrapper" ref={adminWrapRef}>
             {!admin ? (
               <button
@@ -832,6 +861,50 @@ function GiftEditor({ initial, onSubmit, small }) {
     </>
   );
 }
+
+<script>
+(function () {
+
+  // 24. prosinec 2025 17:00
+  const target = new Date(2025, 11, 24, 17, 0, 0);
+
+  const elDays = document.getElementById('cd-days');
+  const elHours = document.getElementById('cd-hours');
+  const elMinutes = document.getElementById('cd-minutes');
+  const elSeconds = document.getElementById('cd-seconds');
+
+  const countdownBox = document.querySelector('.countdown');
+  const finishedBox  = document.getElementById('countdown-finished-msg');
+
+  function updateCountdown() {
+    const now = new Date();
+    const diff = target - now;
+
+    if (diff <= 0) {
+      // zastavit odpočet + zobrazit zprávu
+      countdownBox.style.display = 'none';
+      finishedBox.style.display = 'block';
+      return;
+    }
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / (60 * 60 * 24));
+    const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
+    const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+    const seconds = totalSeconds % 60;
+
+    elDays.textContent = days;
+    elHours.textContent = String(hours).padStart(2, '0');
+    elMinutes.textContent = String(minutes).padStart(2, '0');
+    elSeconds.textContent = String(seconds).padStart(2, '0');
+  }
+
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+
+})();
+</script>
+
 
 function Field({ label, children }) {
   return (
