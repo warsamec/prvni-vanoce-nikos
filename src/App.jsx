@@ -500,11 +500,17 @@ export default function App() {
           borderBottom: "1px solid rgba(255,255,255,.08)",
         }}
       >
-        <div className="container header-bar header-compact" style={{ position: "relative" }}>
-          <h1 className="header-title" style={{ color: "#fff" }}>
-            🎁 Vánoční dárky pro Nikoska 🎄
-              <Countdown />
-          </h1>
+<div  className="container header-bar header-compact"
+  style={{ position: "relative" }}
+>
+  <div className="header-left">
+    <h1 className="header-title" style={{ color: "#fff" }}>
+      🎁 Vánoční dárky pro Nikoska 🎄
+    </h1>
+
+    <Countdown />   {/* teď je POD nadpisem, ne uvnitř h1 */}
+  </div>
+          
           <div className="admin-button-wrapper" ref={adminWrapRef}>
             {!admin ? (
               <button
