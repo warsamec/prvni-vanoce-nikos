@@ -25,7 +25,11 @@ body{
   background:
     radial-gradient(1200px 600px at 10% -20%, rgba(124,58,237,.25), transparent 60%),
     radial-gradient(1000px 500px at 120% 10%, rgba(34,211,238,.25), transparent 50%),
-    linear-gradient(180deg,#0a0f1e,#0b1220 20%, #0b1220 100%);
+    repeating-linear-gradient(
+      to bottom,
+      #0a0f1e 0,
+      #0b1220 600px,
+      #0a0f1e 1200px;
 }
 
 /* Layout */
