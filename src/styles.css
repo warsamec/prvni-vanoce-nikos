@@ -224,13 +224,13 @@ body{
 
 @media (max-width: 768px) {
   #countdown-wrapper {
-    margin-bottom: 1rem; /* aby byl odstup na mobilu ok */
+    margin-bottom: 0.5rem; /* aby byl odstup na mobilu ok */
     text-align: center;
   }
 }
 
 .countdown{
-  margin: 0 auto 2rem;
+  margin: 0;
   padding: .75rem 1.25rem;
   max-width: 480px;
   border-radius: 999px;
