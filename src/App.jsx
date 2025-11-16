@@ -254,7 +254,7 @@ function Countdown() {
     <div id="countdown-wrapper">
       <div className="countdown">
         <div className="countdown-label">
-          ⏳ Do štědrovečerní večeře zbývá:
+          ⏳ Ke stromečku jdeme za:
         </div>
         <div className="countdown-grid">
           <div className="countdown-item">
