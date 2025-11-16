@@ -269,10 +269,6 @@ function Countdown() {
             <span>{String(time.minutes).padStart(2, "0")}</span>
             <small>minut</small>
           </div>
-          <div className="countdown-item">
-            <span>{String(time.seconds).padStart(2, "0")}</span>
-            <small>sekund</small>
-          </div>
         </div>
       </div>
     </div>
