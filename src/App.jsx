@@ -432,40 +432,6 @@ export default function App() {
             🎁 Vánoční dárky pro Nikoska 🎄
           </h1>
 
-          <h1 class="page-title">🎁 Vánoční dárky pro Nikoska 🎄</h1>
-
-<div class="countdown">
-  <div class="countdown-label">
-    ⏳ Do štědrovečerní večeře zbývá:
-  </div>
-  <div class="countdown-grid">
-    <div class="countdown-item">
-      <span id="cd-days">0</span>
-      <small>dnů</small>
-    </div>
-    <div class="countdown-item">
-      <span id="cd-hours">0</span>
-      <small>hodin</small>
-    </div>
-    <div class="countdown-item">
-      <span id="cd-minutes">0</span>
-      <small>minut</small>
-    </div>
-    <div class="countdown-item">
-      <span id="cd-seconds">0</span>
-      <small>sekund</small>
-    </div>
-  </div>
-</div>
-
-<div id="countdown-finished-msg" style="display:none;">
-  <h2 class="finished-text">
-    🎄 Je čas rozbalovat dárky!  
-    <br> Nikosek má radost a děkuje 🎁✨
-  </h2>
-</div>
-
-
           <div className="admin-button-wrapper" ref={adminWrapRef}>
             {!admin ? (
               <button
@@ -875,41 +841,3 @@ function Field({ label, children }) {
     </label>
   );
 }
-(function () {
-  // 24. prosinec 2025, 17:00 místního času
-  const target = new Date(2025, 11, 24, 17, 0, 0); // měsíc 11 = prosinec
-
-  const elDays = document.getElementById('cd-days');
-  const elHours = document.getElementById('cd-hours');
-  const elMinutes = document.getElementById('cd-minutes');
-  const elSeconds = document.getElementById('cd-seconds');
-  const countdownEl = document.querySelector('.countdown');
-
-  function updateCountdown() {
-    const now = new Date();
-    const diff = target - now;
-
-    if (diff <= 0) {
-      elDays.textContent = '0';
-      elHours.textContent = '0';
-      elMinutes.textContent = '0';
-      elSeconds.textContent = '0';
-      countdownEl.classList.add('countdown-finished');
-      return;
-    }
-
-    const totalSeconds = Math.floor(diff / 1000);
-    const days = Math.floor(totalSeconds / (60 * 60 * 24));
-    const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
-    const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
-    const seconds = totalSeconds % 60;
-
-    elDays.textContent = days;
-    elHours.textContent = String(hours).padStart(2, '0');
-    elMinutes.textContent = String(minutes).padStart(2, '0');
-    elSeconds.textContent = String(seconds).padStart(2, '0');
-  }
-
-  updateCountdown();
-  setInterval(updateCountdown, 1000);
-})();
