@@ -207,6 +207,81 @@ function ModalPortal({ children }) {
   return createPortal(children, elRef.current);
 }
 
+import { useEffect, useState } from "react"; // pokud už to tam máš, nepřidávej podruhé
+
+const TARGET_DATE = new Date(2025, 11, 24, 17, 0, 0); // 24. 12. 2025 17:00
+
+function getTimeDiff() {
+  const now = new Date();
+  const diff = TARGET_DATE - now;
+
+  if (diff <= 0) {
+    return { finished: true, days: 0, hours: 0, minutes: 0, seconds: 0 };
+  }
+
+  const totalSeconds = Math.floor(diff / 1000);
+  const days = Math.floor(totalSeconds / (60 * 60 * 24));
+  const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
+  const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+  const seconds = totalSeconds % 60;
+
+  return { finished: false, days, hours, minutes, seconds };
+}
+
+function Countdown() {
+  const [time, setTime] = useState(getTimeDiff());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(getTimeDiff());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  if (time.finished) {
+    return (
+      <div id="countdown-wrapper">
+        <div id="countdown-finished-msg">
+          <h2 className="finished-text">
+            🎄 Je čas rozbalovat dárky! <br />
+            Nikosek má radost a děkuje 🎁✨
+          </h2>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div id="countdown-wrapper">
+      <div className="countdown">
+        <div className="countdown-label">
+          ⏳ Do štědrovečerní večeře zbývá:
+        </div>
+        <div className="countdown-grid">
+          <div className="countdown-item">
+            <span>{time.days}</span>
+            <small>dnů</small>
+          </div>
+          <div className="countdown-item">
+            <span>{String(time.hours).padStart(2, "0")}</span>
+            <small>hodin</small>
+          </div>
+          <div className="countdown-item">
+            <span>{String(time.minutes).padStart(2, "0")}</span>
+            <small>minut</small>
+          </div>
+          <div className="countdown-item">
+            <span>{String(time.seconds).padStart(2, "0")}</span>
+            <small>sekund</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function App() {
   const store = useDataStore();
 
@@ -431,7 +506,7 @@ export default function App() {
           <h1 className="header-title" style={{ color: "#fff" }}>
             🎁 Vánoční dárky pro Nikoska 🎄
           </h1>
-
+  <Countdown />
           <div className="admin-button-wrapper" ref={adminWrapRef}>
             {!admin ? (
               <button
