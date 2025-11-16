@@ -875,3 +875,41 @@ function Field({ label, children }) {
     </label>
   );
 }
+(function () {
+  // 24. prosinec 2025, 17:00 místního času
+  const target = new Date(2025, 11, 24, 17, 0, 0); // měsíc 11 = prosinec
+
+  const elDays = document.getElementById('cd-days');
+  const elHours = document.getElementById('cd-hours');
+  const elMinutes = document.getElementById('cd-minutes');
+  const elSeconds = document.getElementById('cd-seconds');
+  const countdownEl = document.querySelector('.countdown');
+
+  function updateCountdown() {
+    const now = new Date();
+    const diff = target - now;
+
+    if (diff <= 0) {
+      elDays.textContent = '0';
+      elHours.textContent = '0';
+      elMinutes.textContent = '0';
+      elSeconds.textContent = '0';
+      countdownEl.classList.add('countdown-finished');
+      return;
+    }
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / (60 * 60 * 24));
+    const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
+    const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+    const seconds = totalSeconds % 60;
+
+    elDays.textContent = days;
+    elHours.textContent = String(hours).padStart(2, '0');
+    elMinutes.textContent = String(minutes).padStart(2, '0');
+    elSeconds.textContent = String(seconds).padStart(2, '0');
+  }
+
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+})();
