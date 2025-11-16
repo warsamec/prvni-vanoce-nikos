@@ -503,8 +503,8 @@ export default function App() {
         <div className="container header-bar header-compact" style={{ position: "relative" }}>
           <h1 className="header-title" style={{ color: "#fff" }}>
             🎁 Vánoční dárky pro Nikoska 🎄
+              <Countdown />
           </h1>
-  <Countdown />
           <div className="admin-button-wrapper" ref={adminWrapRef}>
             {!admin ? (
               <button
