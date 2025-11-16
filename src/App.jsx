@@ -432,6 +432,40 @@ export default function App() {
             🎁 Vánoční dárky pro Nikoska 🎄
           </h1>
 
+          <h1 class="page-title">🎁 Vánoční dárky pro Nikoska 🎄</h1>
+
+<div class="countdown">
+  <div class="countdown-label">
+    ⏳ Do štědrovečerní večeře zbývá:
+  </div>
+  <div class="countdown-grid">
+    <div class="countdown-item">
+      <span id="cd-days">0</span>
+      <small>dnů</small>
+    </div>
+    <div class="countdown-item">
+      <span id="cd-hours">0</span>
+      <small>hodin</small>
+    </div>
+    <div class="countdown-item">
+      <span id="cd-minutes">0</span>
+      <small>minut</small>
+    </div>
+    <div class="countdown-item">
+      <span id="cd-seconds">0</span>
+      <small>sekund</small>
+    </div>
+  </div>
+</div>
+
+<div id="countdown-finished-msg" style="display:none;">
+  <h2 class="finished-text">
+    🎄 Je čas rozbalovat dárky!  
+    <br> Nikosek má radost a děkuje 🎁✨
+  </h2>
+</div>
+
+
           <div className="admin-button-wrapper" ref={adminWrapRef}>
             {!admin ? (
               <button
