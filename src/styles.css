@@ -47,12 +47,31 @@ body{
   background:linear-gradient(180deg, rgba(15,23,42,.85), rgba(15,23,42,.55));
   border-bottom:1px solid rgba(148,163,184,.15);
 }
-.header-bar{display:flex;align-items:center;gap:12px;padding:5px}
-.header-left{
-  display:flex;
-  flex-direction:column;
-  gap:0.5rem;          /* mezera mezi nadpisem a countdownem */
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px;
 }
+
+/* levá část — desktop: řádková, mobil: sloupec */
+.header-left {
+  display: flex;
+  flex-direction: row;       /* DESKTOP – VEDLE SEBE */
+  align-items: center;
+  gap: 16px;                 /* mezera mezi nadpisem a countdownem */
+}
+
+/* MOBILNÍ MODE — POD SEBE */
+@media (max-width: 768px) {
+  .header-left {
+    flex-direction: column;  /* mobil – POD SEBE */
+    align-items: flex-start; /* nebo center pokud chceš střed */
+    gap: 8px;
+  }
+}
+
 .header-title{font-size:22px;font-weight:800;letter-spacing:.2px;display:flex;gap:8px;align-items:center}
 .pill{font-size:12px;color:var(--muted);margin-left:auto;padding:6px 10px;border:1px solid rgba(148,163,184,.25);border-radius:999px;background:rgba(15,23,42,.35)}
 .btn{
@@ -198,9 +217,16 @@ body{
 }
 /* COUNTDOWN BLOK */
 
-#countdown-wrapper{
-  margin: 0 auto 2rem;
+#countdown-wrapper {
+  margin: 0;
   text-align: center;
+}
+
+@media (max-width: 768px) {
+  #countdown-wrapper {
+    margin-bottom: 1rem; /* aby byl odstup na mobilu ok */
+    text-align: center;
+  }
 }
 
 .countdown{
