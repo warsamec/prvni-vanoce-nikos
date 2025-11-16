@@ -207,8 +207,6 @@ function ModalPortal({ children }) {
   return createPortal(children, elRef.current);
 }
 
-import { useEffect, useState } from "react"; // pokud už to tam máš, nepřidávej podruhé
-
 const TARGET_DATE = new Date(2025, 11, 24, 17, 0, 0); // 24. 12. 2025 17:00
 
 function getTimeDiff() {
