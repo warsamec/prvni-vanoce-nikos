@@ -291,8 +291,14 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState("");
-  const [admin, setAdmin] = useState(false);
-  const [hideAll, setHideAll] = useState(false); // 🔴 nový stav pro globální skrytí
+const [admin, setAdmin] = useState(false);
+const [hideAll, setHideAll] = useState(() => {
+  try {
+    return localStorage.getItem("nikos-hide-all") === "1";
+  } catch {
+    return false;
+  }
+});
   const [pinInput, setPinInput] = useState("");
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const adminWrapRef = useRef(null);
@@ -547,10 +553,14 @@ export default function App() {
             ) : (
               <button
                 className="admin-button admin-active"
-                onClick={() => {
-                  setAdmin(false);
-                  setHideAll(false); // při odhlášení admina vypneme hideAll
-                }}
+onClick={() => {
+  setAdmin(false);
+  setHideAll(false);
+  try {
+    localStorage.setItem("nikos-hide-all", "0");
+  } catch {}
+}}
+
                 title="Odhlásit admin"
                 style={{
                   background: "rgba(255,255,255,.12)",
@@ -624,12 +634,20 @@ export default function App() {
               className="row"
               style={{ marginLeft: "auto", gap: 8, alignItems: "center" }}
             >
-              <button
-                className="btn secondary"
-                onClick={() => setHideAll((v) => !v)}
-              >
-                {hideAll ? "Zobrazit dárky" : "Skrýt všechny dárky"}
-              </button>
+<button
+  className="btn secondary"
+  onClick={() => {
+    setHideAll((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem("nikos-hide-all", next ? "1" : "0");
+      } catch {}
+      return next;
+    });
+  }}
+>
+  {hideAll ? "Zobrazit dárky" : "Skrýt všechny dárky"}
+</button>
               <button className="btn ghost" onClick={() => setAdmin(false)}>
                 Odhlásit admin
               </button>
