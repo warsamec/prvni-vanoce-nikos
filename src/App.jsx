@@ -4,7 +4,8 @@ import { createPortal } from "react-dom";
 /* === Konfigurace / konstanty === */
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const ADMIN_PIN = (import.meta.env && import.meta.env.VITE_ADMIN_PIN) || "nikos2025";
+const ADMIN_PIN =
+  (import.meta.env && import.meta.env.VITE_ADMIN_PIN) || "nikos2025";
 const SITE_HAS_SUPABASE = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 const TABLE = "gifts_registry";
 
@@ -44,12 +45,14 @@ const currency = (n) =>
   typeof n === "number"
     ? n.toLocaleString("cs-CZ", { style: "currency", currency: "CZK" })
     : "";
+
 const maskEmail = (email = "") => {
   const [u, d] = String(email).split("@");
   if (!u || !d) return "(neznámý e-mail)";
   const m = u.length <= 2 ? "**" : u[0] + "***" + u.slice(-1);
   return `${m}@${d}`;
 };
+
 const genToken = () => crypto.getRandomValues(new Uint32Array(4)).join("");
 
 /* Datastore (Supabase / LocalStorage) */
@@ -83,7 +86,7 @@ function useDataStore() {
       return gift;
     }
 
-    // ❗ Odfiltrujeme generated columns, které nejdou zapisovat
+    // Odfiltrujeme generated columns, které nejdou zapisovat
     const {
       reservation_status,
       status_icon,
@@ -110,7 +113,7 @@ function useDataStore() {
     const rows = await check.json();
 
     if (rows.length) {
-      // PATCH existujícího záznamu – POZOR: neposíláme generated columns
+      // PATCH existujícího záznamu – neposíláme generated columns
       const { id, ...rest } = cleanGift;
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(id)}`,
@@ -119,7 +122,7 @@ function useDataStore() {
       if (!(res.ok || res.status === 204)) throw new Error(await res.text());
       return gift;
     } else {
-      // POST nového záznamu – opět bez generated columns
+      // POST nového záznamu
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
         method: "POST",
         headers: baseHeaders,
@@ -194,6 +197,46 @@ function useDataStore() {
     return await upsertGift({ ...g, reservation: null });
   }
 
+  // 🔴 Globální přepínač "hide_all" v tabulce settings
+  async function getGlobalHideAll() {
+    if (!SITE_HAS_SUPABASE) return false;
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/settings?key=eq.hide_all&select=value&limit=1`,
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+      }
+    );
+    if (!res.ok) {
+      console.warn("getGlobalHideAll selhalo", await res.text());
+      return false;
+    }
+    const rows = await res.json();
+    return rows[0]?.value === "1";
+  }
+
+  async function setGlobalHideAll(v) {
+    if (!SITE_HAS_SUPABASE) return;
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/settings?key=eq.hide_all`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ value: v ? "1" : "0" }),
+      }
+    );
+    if (!res.ok && res.status !== 204) {
+      console.warn("setGlobalHideAll selhalo", await res.text());
+    }
+  }
+
   return {
     listGifts,
     upsertGift,
@@ -201,6 +244,8 @@ function useDataStore() {
     createPendingReservation,
     confirmReservationByToken,
     unreserveGift,
+    getGlobalHideAll,
+    setGlobalHideAll,
   };
 }
 
@@ -291,14 +336,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState("");
-const [admin, setAdmin] = useState(false);
-const [hideAll, setHideAll] = useState(() => {
-  try {
-    return localStorage.getItem("nikos-hide-all") === "1";
-  } catch {
-    return false;
-  }
-});
+  const [admin, setAdmin] = useState(false);
+  const [hideAll, setHideAll] = useState(false); // globální stav skrytí dárků
   const [pinInput, setPinInput] = useState("");
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const adminWrapRef = useRef(null);
@@ -329,15 +368,28 @@ const [hideAll, setHideAll] = useState(() => {
   const [reserveNotice, setReserveNotice] = useState("");
   const [reserveSending, setReserveSending] = useState(false);
 
-  // --- Stabilní pořadí jen po dobu návštěvy (reset při reloadu) ---
+  // Stabilní pořadí jen po dobu návštěvy (reset při reloadu)
   const [orderMap, setOrderMap] = useState({});
   const orderInitRef = useRef(false);
 
+  // Načtení dárků
   useEffect(() => {
     (async () => {
       const data = await store.listGifts();
       setItems(data);
       setLoading(false);
+    })();
+  }, []);
+
+  // Načtení globálního hideAll ze Supabase
+  useEffect(() => {
+    (async () => {
+      try {
+        const v = await store.getGlobalHideAll();
+        setHideAll(v);
+      } catch (e) {
+        console.warn("Načtení hideAll selhalo", e);
+      }
     })();
   }, []);
 
@@ -398,7 +450,6 @@ const [hideAll, setHideAll] = useState(() => {
             .some((v) => v.toLowerCase().includes(q))
         );
 
-    // rozdělení na volné vs. rezervované (pending i confirmed bereme jako rezervované)
     const isReserved = (g) =>
       g.reservation &&
       (g.reservation.status === "pending" ||
@@ -407,13 +458,10 @@ const [hideAll, setHideAll] = useState(() => {
     const free = base.filter((g) => !isReserved(g));
     const reserved = base.filter((g) => isReserved(g));
 
-    // Když ještě není připraven orderMap (úplně první moment), aspoň dáme volné nahoru
     if (!Object.keys(orderMap).length) {
       return [...free, ...reserved];
     }
 
-    // Stabilní náhodné pořadí v rámci návštěvy:
-    // zvlášť pro volné a zvlášť pro rezervované, pak je slepíme
     const byKey = (a, b) => {
       const ka = orderMap[a.id] ?? 0;
       const kb = orderMap[b.id] ?? 0;
@@ -474,7 +522,7 @@ const [hideAll, setHideAll] = useState(() => {
       setReserveNotice(e.message || "Rezervace selhala");
     } finally {
       setReserveSending(false);
-      setItems(await store.listGifts()); // karta se přepne do "pending", pořadí zůstává stejné
+      setItems(await store.listGifts());
     }
   }
 
@@ -518,7 +566,7 @@ const [hideAll, setHideAll] = useState(() => {
           top: 0,
           zIndex: 60,
           backdropFilter: "saturate(180%) blur(8px)",
-          background: "rgba(15,23,42,.8)", // tmavé polopropustné
+          background: "rgba(15,23,42,.8)",
           color: "#fff",
           borderBottom: "1px solid rgba(255,255,255,.08)",
         }}
@@ -531,7 +579,6 @@ const [hideAll, setHideAll] = useState(() => {
             <h1 className="header-title" style={{ color: "#fff" }}>
               🎁 Vánoční dárky pro Nikoska 🎄
             </h1>
-
             <Countdown />
           </div>
 
@@ -553,14 +600,10 @@ const [hideAll, setHideAll] = useState(() => {
             ) : (
               <button
                 className="admin-button admin-active"
-onClick={() => {
-  setAdmin(false);
-  setHideAll(false);
-  try {
-    localStorage.setItem("nikos-hide-all", "0");
-  } catch {}
-}}
-
+                onClick={() => {
+                  setAdmin(false);
+                  // Globální hideAll necháváme tak, jak je nastavený v DB
+                }}
                 title="Odhlásit admin"
                 style={{
                   background: "rgba(255,255,255,.12)",
@@ -634,20 +677,20 @@ onClick={() => {
               className="row"
               style={{ marginLeft: "auto", gap: 8, alignItems: "center" }}
             >
-<button
-  className="btn secondary"
-  onClick={() => {
-    setHideAll((v) => {
-      const next = !v;
-      try {
-        localStorage.setItem("nikos-hide-all", next ? "1" : "0");
-      } catch {}
-      return next;
-    });
-  }}
->
-  {hideAll ? "Zobrazit dárky" : "Skrýt všechny dárky"}
-</button>
+              <button
+                className="btn secondary"
+                onClick={async () => {
+                  const next = !hideAll;
+                  setHideAll(next);
+                  try {
+                    await store.setGlobalHideAll(next);
+                  } catch (e) {
+                    console.warn("Uložení hideAll selhalo", e);
+                  }
+                }}
+              >
+                {hideAll ? "Zobrazit dárky" : "Skrýt všechny dárky"}
+              </button>
               <button className="btn ghost" onClick={() => setAdmin(false)}>
                 Odhlásit admin
               </button>
@@ -806,7 +849,7 @@ function GiftCard({
   const status = gift.reservation?.status || null;
   const confirmed = status === "confirmed";
   const pending = status === "pending";
-  const forcedHidden = hideAll; // režim globálního skrytí
+  const forcedHidden = hideAll;
 
   return (
     <div
@@ -826,10 +869,7 @@ function GiftCard({
           {confirmed && <span className="badge ok">Zarezervováno</span>}
           {pending && <span className="badge pending">Čeká na potvrzení</span>}
           {forcedHidden && !confirmed && !pending && (
-            <span
-              className="badge danger"
-              style={{ background: "#b91c1c" }}
-            >
+            <span className="badge danger" style={{ background: "#b91c1c" }}>
               Nerezervováno
             </span>
           )}
@@ -840,13 +880,12 @@ function GiftCard({
         {gift.note && <div className="note">{gift.note}</div>}
 
         <div className="row hr">
-          {/* Nerezervovaný / pending vs. potvrzený stav */}
           {!confirmed ? (
             <>
-              {/* Tlačítko rezervace se v režimu hideAll vůbec nezobrazuje */}
+              {/* Tlačítko Zarezervovat v režimu hideAll nezobrazujeme */}
               {!forcedHidden && (
                 <button
-                  className={"btn ok"}
+                  className="btn ok"
                   onClick={onReserve}
                   disabled={pending}
                   style={{
@@ -991,8 +1030,7 @@ function GiftEditor({ initial, onSubmit, small }) {
               <div
                 className="grid"
                 style={{
-                  gridTemplateColumns:
-                    "repeat(auto-fit,minmax(220px,1fr))",
+                  gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
                 }}
               >
                 <Field label="ID (unikátní, bez mezer)">
